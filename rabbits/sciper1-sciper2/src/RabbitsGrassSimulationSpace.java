@@ -94,7 +94,7 @@ public class RabbitsGrassSimulationSpace {
     }
 
     public int takeGrassAt(int x, int y){
-        int  food = getGrassAt(x, y);
+        int food = getGrassAt(x, y);
         grassSpace.putObjectAt(x, y, new Integer(0));
         return food;
     }
