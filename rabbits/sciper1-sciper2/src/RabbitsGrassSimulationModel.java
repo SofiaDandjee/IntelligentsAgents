@@ -32,14 +32,13 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 
 		private static final int GRIDSIZE = 20;
 		private static final int NUMINITRABBITS = 20;
-		private static final int NUMINITGRASS = 5;
-		private static final int GRASSGROWTHRATE = 100;
-		private static int ENERGYPERGRASS = 30;
+		private static final int NUMINITGRASS = 80;
+		private static final int GRASSGROWTHRATE = 20;
+		private static int ENERGYPERGRASS = 2;
 
-		private static final int BIRTHTHRESHOLD = 130;
-		private static final int RABBIT_INIT_ENERGY = 100;
-
-		private static final int LOSSREPRODUCTION = 5;
+		private static final int BIRTHTHRESHOLD = 30;
+		private static final int RABBIT_INIT_ENERGY = 10;
+		private static final int LOSSREPRODUCTION = 20;
 
 		private int gridSize = GRIDSIZE;
 		private int numInitRabbits = NUMINITRABBITS;
@@ -99,7 +98,6 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 		}
 
 		public void begin() {
-			// TODO Auto-generated method stub
 			buildModel();
 			buildSchedule();
 			buildDisplay();
@@ -168,7 +166,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 						RabbitsGrassSimulationAgent cda = (RabbitsGrassSimulationAgent) agentList.get(i);
 						if (cda.getEnergy() > birthThreshold) {
 							addNewAgent();
-							//The rabbit loses all the energy he had
+							//The rabbit loses some of the energy it had
 							cda.loseEnergy(LOSSREPRODUCTION);
 						}
 
@@ -208,7 +206,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 			for(int i = 1; i<16; i++){
 				map.mapColor(i, new Color(0, Math.max((int)(160 -i * 10), 60), 0));
 			}
-			map.mapColor(0, Color.white);
+			map.mapColor(0, Color.gray);
 
 			Value2DDisplay displayGrass = new Value2DDisplay(rgSpace.getCurrentGrassSpace(), map);
 
@@ -224,10 +222,9 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 		}
 
 		public String[] getInitParam() {
-			// TODO Auto-generated method stub
 			// Parameters to be set by users via the Repast UI slider bar
 			// Do "not" modify the parameters names provided in the skeleton code, you can add more if you want 
-			String[] params = { "GridSize", "NumInitRabbits", "NumInitGrass", "GrassGrowthRate", "BirthThreshold", "NumInitEnergy","EnergyPerGrass"};
+			String[] params = { "GridSize", "NumInitRabbits", "NumInitGrass", "GrassGrowthRate", "BirthThreshold", "NumInitEnergy","EnergyPerGrass","LossReproduction"};
 			return params;
 		}
 
@@ -274,7 +271,10 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 	}
 
 	public void setBirthThreshold(int birthThreshold) {
-		this.birthThreshold = birthThreshold;
+		if (birthThreshold > numInitEnergy)
+			this.birthThreshold = birthThreshold;
+		else
+			System.out.println("Birth threshold set is not succesfull. Should be higher than initial energy.");
 	}
 
 	public int getGrassGrowthRate() {
@@ -309,8 +309,15 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 		this.energyPerGrass = energyPerGrass;
 	}
 
+	public int getLossReproduction() {
+		return lossReproduction;
+	}
+
+	public void setLossReproduction(int lossReproduction) {
+		this.lossReproduction = lossReproduction;
+	}
+
 	public String getName() {
-			// TODO Auto-generated method stub
 			return "Rabbits Grass Simulation";
 		}
 
@@ -319,7 +326,6 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 		}
 
 		public void setup() {
-
 			System.out.println("Running setup");
 			rgSpace = null;
 			agentList = new ArrayList();
@@ -329,7 +335,6 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 				displaySurf.dispose();
 			}
 			displaySurf = null;
-
 			if (amountOfGrassInSpace != null){
 				amountOfGrassInSpace.dispose();
 			}

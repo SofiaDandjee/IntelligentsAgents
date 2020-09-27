@@ -1,5 +1,10 @@
 import java.awt.Color;
+import java.io.IOException;
 import java.util.Map;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import javax.imageio.ImageIO;
+import java.awt.Graphics;
 
 import uchicago.src.sim.space.Object2DGrid;
 import uchicago.src.sim.gui.Drawable;
@@ -22,9 +27,18 @@ public class RabbitsGrassSimulationAgent implements Drawable {
 	private static int IDNumber = 0;
 	private int ID;
 	private RabbitsGrassSimulationSpace rgSpace;
+	private BufferedImage img;
+	private Graphics g;
 //	private int ENERGY_GAIN;
 
 	public RabbitsGrassSimulationAgent(int minEnergy){
+		try {
+			img = ImageIO.read(new File("img/rabbit.png"));
+			System.out.println("image read succesfull");
+		} catch (IOException e) {
+			System.out.println("image read not succesfull");
+
+		}
 		x = -1;
 		y = -1;
 		energy = minEnergy;
@@ -82,10 +96,15 @@ public class RabbitsGrassSimulationAgent implements Drawable {
 	}
 
 	public void draw(SimGraphics arg0) {
-		if(energy > 10)
-			arg0.drawFastRoundRect(Color.blue);
-		else
-		arg0.drawFastRoundRect(Color.red);
+		if (img != null) {
+			arg0.drawImageToFit(img);
+		}
+		else {
+			if(energy > 4)
+				arg0.drawFastRoundRect(Color.blue);
+			else
+				arg0.drawFastRoundRect(Color.red);
+		}
 	}
 
 	public int getX() {
@@ -106,9 +125,10 @@ public class RabbitsGrassSimulationAgent implements Drawable {
 		newY = (newY + grid.getSizeY()) % grid.getSizeY();
 
 		if(tryMove(newX, newY)) {
-			energy += energyGain*rgSpace.takeGrassAt(x, y);
+//			energy += energyGain*rgSpace.takeGrassAt(x, y);
+			receiveEnergy(energyGain*rgSpace.takeGrassAt(x, y));
 		}
-		else {
+//		else { // else do nothing
 			//setVxVy();
 			/**RabbitsGrassSimulationAgent cda = rgSpace.getAgentAt(newX, newY);
 			if (cda!= null){
@@ -118,7 +138,7 @@ public class RabbitsGrassSimulationAgent implements Drawable {
 					energy--;
 				}
 			}**/
-		}
+//		}
 		energy--;
 	}
 
