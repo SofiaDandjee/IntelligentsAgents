@@ -206,7 +206,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 			for(int i = 1; i<16; i++){
 				map.mapColor(i, new Color(0, Math.max((int)(160 -i * 10), 60), 0));
 			}
-			map.mapColor(0, Color.gray);
+			map.mapColor(0, new Color(180,180,180));
 
 			Value2DDisplay displayGrass = new Value2DDisplay(rgSpace.getCurrentGrassSpace(), map);
 
