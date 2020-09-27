@@ -32,51 +32,53 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 
 		private static final int GRIDSIZE = 20;
 		private static final int NUMINITRABBITS = 20;
-		private static final int NUMINITGRASS = 5;
-		private static final int GRASSGROWTHRATE = 1;
+		private static final int NUMINITGRASS = 80;
+		private static final int GRASSGROWTHRATE = 20;
+		private static int ENERGYPERGRASS = 2;
 
-		private static final int BIRTHTHRESHOLD = 130;
-		private static final int RABBIT_INIT_ENERGY = 100;
-
-		private static final int LOSSREPRODUCTION = 5;
+		private static final int BIRTHTHRESHOLD = 30;
+		private static final int RABBIT_INIT_ENERGY = 10;
+		private static final int LOSSREPRODUCTION = 20;
 
 		private int gridSize = GRIDSIZE;
 		private int numInitRabbits = NUMINITRABBITS;
-		private int numInitGrass = NUMINITRABBITS;
-		private double grassGrowthRate = GRASSGROWTHRATE;
+		private int numInitGrass = NUMINITGRASS;
+		private int grassGrowthRate = GRASSGROWTHRATE;
 		private int birthThreshold = BIRTHTHRESHOLD;
 		private int numInitEnergy = RABBIT_INIT_ENERGY;
+
 		private int lossReproduction = LOSSREPRODUCTION;
+		private int energyPerGrass = ENERGYPERGRASS;
 
-	private ArrayList agentList;
+		private ArrayList agentList;
 
-	private RabbitsGrassSimulationSpace rgSpace;
+		private RabbitsGrassSimulationSpace rgSpace;
 
-	private OpenSequenceGraph amountOfGrassInSpace;
+		private OpenSequenceGraph amountOfGrassInSpace;
 
-	private OpenSequenceGraph amountOfRabbitsInSpace;
+		private OpenSequenceGraph amountOfRabbitsInSpace;
 
-	class grassInSpace implements DataSource, Sequence {
+		class grassInSpace implements DataSource, Sequence {
 
-		public Object execute() {
-			return new Double(getSValue());
+			public Object execute() {
+				return new Double(getSValue());
+			}
+
+			public double getSValue() {
+				return (double)rgSpace.getTotalGrass();
+			}
 		}
 
-		public double getSValue() {
-			return (double)rgSpace.getTotalGrass();
-		}
-	}
+		class rabbitsInSpace implements DataSource, Sequence {
 
-	class rabbitsInSpace implements DataSource, Sequence {
+			public Object execute() {
+				return new Double(getSValue());
+			}
 
-		public Object execute() {
-			return new Double(getSValue());
+			public double getSValue() {
+				return (double)rgSpace.getTotalRabbits();
+			}
 		}
-
-		public double getSValue() {
-			return (double)rgSpace.getTotalRabbits();
-		}
-	}
 
 
 		private DisplaySurface displaySurf;
@@ -96,7 +98,6 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 		}
 
 		public void begin() {
-			// TODO Auto-generated method stub
 			buildModel();
 			buildSchedule();
 			buildDisplay();
@@ -134,7 +135,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 					SimUtilities.shuffle(agentList);
 					for(int i =0; i < agentList.size(); i++){
 						RabbitsGrassSimulationAgent cda = (RabbitsGrassSimulationAgent) agentList.get(i);
-						cda.step();
+						cda.step(energyPerGrass);
 						cda.report();
 					}
 
@@ -152,7 +153,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 			class GrowGrass extends BasicAction {
 				@Override
 				public void execute() {
-					rgSpace.spreadGrass(GRASSGROWTHRATE);
+					rgSpace.spreadGrass(grassGrowthRate);
 				}
 			}
 			schedule.scheduleActionAtInterval(1, new GrowGrass());
@@ -165,7 +166,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 						RabbitsGrassSimulationAgent cda = (RabbitsGrassSimulationAgent) agentList.get(i);
 						if (cda.getEnergy() > birthThreshold) {
 							addNewAgent();
-							//The rabbit loses all the energy he had
+							//The rabbit loses some of the energy it had
 							cda.loseEnergy(LOSSREPRODUCTION);
 						}
 
@@ -203,9 +204,9 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 			ColorMap map = new ColorMap();
 
 			for(int i = 1; i<16; i++){
-				map.mapColor(i, new Color(0, (int)(i * 8 + 127), 0));
+				map.mapColor(i, new Color(0, Math.max((int)(160 -i * 10), 60), 0));
 			}
-			map.mapColor(0, Color.white);
+			map.mapColor(0, new Color(180,180,180));
 
 			Value2DDisplay displayGrass = new Value2DDisplay(rgSpace.getCurrentGrassSpace(), map);
 
@@ -221,10 +222,9 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 		}
 
 		public String[] getInitParam() {
-			// TODO Auto-generated method stub
 			// Parameters to be set by users via the Repast UI slider bar
 			// Do "not" modify the parameters names provided in the skeleton code, you can add more if you want 
-			String[] params = { "GridSize", "NumInitRabbits", "NumInitGrass", "GrassGrowthRate", "BirthThreshold", "NumInitEnergy"};
+			String[] params = { "GridSize", "NumInitRabbits", "NumInitGrass", "GrassGrowthRate", "BirthThreshold", "NumInitEnergy","EnergyPerGrass","LossReproduction"};
 			return params;
 		}
 
@@ -258,10 +258,6 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 		return livingAgents;
 	}
 
-	public double getGrassGrowthRate() {
-		return grassGrowthRate;
-	}
-
 	public int getGridSize() {
 		return gridSize;
 	}
@@ -275,10 +271,17 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 	}
 
 	public void setBirthThreshold(int birthThreshold) {
-		this.birthThreshold = birthThreshold;
+		if (birthThreshold > numInitEnergy)
+			this.birthThreshold = birthThreshold;
+		else
+			System.out.println("Birth threshold set is not succesfull. Should be higher than initial energy.");
 	}
 
-	public void setGrassGrowthRate(double grassGrowthRate) {
+	public int getGrassGrowthRate() {
+		return grassGrowthRate;
+	}
+
+	public void setGrassGrowthRate(int grassGrowthRate) {
 		this.grassGrowthRate = grassGrowthRate;
 	}
 
@@ -298,9 +301,23 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 		this.schedule = schedule;
 	}
 
+	public int getEnergyPerGrass() {
+		return energyPerGrass;
+	}
+
+	public void setEnergyPerGrass(int energyPerGrass) {
+		this.energyPerGrass = energyPerGrass;
+	}
+
+	public int getLossReproduction() {
+		return lossReproduction;
+	}
+
+	public void setLossReproduction(int lossReproduction) {
+		this.lossReproduction = lossReproduction;
+	}
 
 	public String getName() {
-			// TODO Auto-generated method stub
 			return "Rabbits Grass Simulation";
 		}
 
@@ -309,7 +326,6 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 		}
 
 		public void setup() {
-
 			System.out.println("Running setup");
 			rgSpace = null;
 			agentList = new ArrayList();
@@ -319,7 +335,6 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 				displaySurf.dispose();
 			}
 			displaySurf = null;
-
 			if (amountOfGrassInSpace != null){
 				amountOfGrassInSpace.dispose();
 			}
