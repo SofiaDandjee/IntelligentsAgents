@@ -22,7 +22,7 @@ public class RabbitsGrassSimulationAgent implements Drawable {
 	private static int IDNumber = 0;
 	private int ID;
 	private RabbitsGrassSimulationSpace rgSpace;
-	private static int ENERGY_GAIN = 30;
+//	private int ENERGY_GAIN;
 
 	public RabbitsGrassSimulationAgent(int minEnergy){
 		x = -1;
@@ -96,7 +96,7 @@ public class RabbitsGrassSimulationAgent implements Drawable {
 		return y;
 	}
 
-	public void step(){
+	public void step(int energyGain){
 		setVxVy();
 		int newX = x + vX;
 		int newY = y + vY;
@@ -106,7 +106,7 @@ public class RabbitsGrassSimulationAgent implements Drawable {
 		newY = (newY + grid.getSizeY()) % grid.getSizeY();
 
 		if(tryMove(newX, newY)) {
-			energy += ENERGY_GAIN*rgSpace.takeGrassAt(x, y);
+			energy += energyGain*rgSpace.takeGrassAt(x, y);
 		}
 		else {
 			//setVxVy();
