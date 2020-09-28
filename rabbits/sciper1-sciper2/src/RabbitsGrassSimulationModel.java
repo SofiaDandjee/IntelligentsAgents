@@ -57,6 +57,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 		private OpenSequenceGraph amountOfGrassInSpace;
 
 		private OpenSequenceGraph amountOfRabbitsInSpace;
+		private OpenSequenceGraph populationEvolution;
 
 		class grassInSpace implements DataSource, Sequence {
 
@@ -105,6 +106,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 			displaySurf.display();
 			amountOfGrassInSpace.display();
 			amountOfRabbitsInSpace.display();
+			populationEvolution.display();
 		}
 
 		public void buildModel(){
@@ -132,18 +134,22 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 			System.out.println("Running BuildSchedule");
 			class RabbitsGrassStep extends BasicAction {
 				public void execute() {
+					System.out.println("STEP");
 					SimUtilities.shuffle(agentList);
+					boolean reproduction = false;
 					for(int i =0; i < agentList.size(); i++){
 						RabbitsGrassSimulationAgent cda = (RabbitsGrassSimulationAgent) agentList.get(i);
-						cda.step(energyPerGrass);
-						cda.report();
+						reproduction = cda.step(energyPerGrass, lossReproduction, birthThreshold);
+						if (reproduction) {
+							System.out.println("BOOM");
+							addNewAgent();
+						}
+						//cda.report();
 					}
 
 					int deadAgents = reapDeadAgents();
-
-					/**for(int i =0; i < deadAgents; i++){
-						addNewAgent();
-					}**/
+					System.out.println(deadAgents + " rabbits died.");
+					System.out.println("There are" + agentList.size() + " rabbits.");
 
 					displaySurf.updateDisplay();
 				}
@@ -158,7 +164,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 			}
 			schedule.scheduleActionAtInterval(1, new GrowGrass());
 
-			class RabbitReproduction extends BasicAction {
+			/**class RabbitReproduction extends BasicAction {
 				@Override
 				public void execute() {
 					SimUtilities.shuffle(agentList);
@@ -173,7 +179,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 					}
 				}
 			}
-			schedule.scheduleActionAtInterval(1, new RabbitReproduction());
+			schedule.scheduleActionAtInterval(1, new RabbitReproduction());*/
 
 			class RabbitsGrassCountLiving extends BasicAction {
 				public void execute(){
@@ -181,7 +187,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 				}
 			}
 
-			schedule.scheduleActionAtInterval(10, new RabbitsGrassCountLiving());
+			schedule.scheduleActionAtInterval(1, new RabbitsGrassCountLiving());
 
 			class RabbitsGrassUpdateGrassInSpace extends BasicAction {
 				public void execute(){
@@ -197,6 +203,15 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 			}
 			schedule.scheduleActionAtInterval(10, new RabbitsGrassUpdateRabbitsInSpace());
 
+			class PopulationEvolutionUpdate extends BasicAction {
+				@Override
+				public void execute() {
+					populationEvolution.step();
+				}
+			}
+
+			schedule.scheduleActionAtInterval(10, new PopulationEvolutionUpdate());
+
 		}
 
 		public void buildDisplay(){
@@ -206,7 +221,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 			for(int i = 1; i<16; i++){
 				map.mapColor(i, new Color(0, Math.max((int)(160 -i * 10), 60), 0));
 			}
-			map.mapColor(0, new Color(180,180,180));
+			map.mapColor(0, new Color(150,75,0));
 
 			Value2DDisplay displayGrass = new Value2DDisplay(rgSpace.getCurrentGrassSpace(), map);
 
@@ -218,6 +233,9 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 
 			amountOfGrassInSpace.addSequence("Grass In Space", new grassInSpace());
 			amountOfRabbitsInSpace.addSequence("Grass In Space", new rabbitsInSpace());
+			populationEvolution.addSequence("Grass in Space", new grassInSpace());
+			populationEvolution.addSequence("Rabbits in Space", new rabbitsInSpace());
+
 
 		}
 
@@ -345,14 +363,22 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 			}
 			amountOfRabbitsInSpace = null;
 
+			if (populationEvolution != null) {
+				populationEvolution.dispose();
+			}
+			populationEvolution = null;
+
 			displaySurf = new DisplaySurface(this, "Rabbit Grass Model");
 			amountOfGrassInSpace = new OpenSequenceGraph("Amount Of Grass In Space",this);
 			amountOfRabbitsInSpace = new OpenSequenceGraph("Amount Of Rabbits In Space",this);
-
-
+			populationEvolution = new OpenSequenceGraph("Population Evolution", this);
+			amountOfGrassInSpace.setAxisTitles("Time", "Number of grass units");
+			amountOfRabbitsInSpace.setAxisTitles("Time", "Number of rabbits");
+			populationEvolution.setAxisTitles("Time", "Population evolution");
 			registerDisplaySurface("Rabbit Grass Model", displaySurf);
 			this.registerMediaProducer("Plot", amountOfGrassInSpace);
 			this.registerMediaProducer("Plot", amountOfRabbitsInSpace);
+			this.registerMediaProducer("Plot", populationEvolution);
 		}
 	public int getNumInitEnergy() {
 		return numInitEnergy;
