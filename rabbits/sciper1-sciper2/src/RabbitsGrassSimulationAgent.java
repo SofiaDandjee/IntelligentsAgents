@@ -24,6 +24,7 @@ public class RabbitsGrassSimulationAgent implements Drawable {
 	private int vY;
 	private int energy;
 
+
 	private static int IDNumber = 0;
 	private int ID;
 	private RabbitsGrassSimulationSpace rgSpace;
@@ -34,7 +35,7 @@ public class RabbitsGrassSimulationAgent implements Drawable {
 	public RabbitsGrassSimulationAgent(int minEnergy){
 		try {
 			img = ImageIO.read(new File("img/rabbit.png"));
-			System.out.println("image read succesfull");
+			//System.out.println("image read succesfull");
 		} catch (IOException e) {
 			System.out.println("image read not succesfull");
 
@@ -51,8 +52,7 @@ public class RabbitsGrassSimulationAgent implements Drawable {
 		vX = 0;
 		vY = 0;
 		int v = 0;
-		//The rabbit either moves in the x direction or the y direction, the rabbit can stay in the same cell as well
-		//We randomly chose a speed (-1 or 1)
+		//The rabbit either moves in the x direction or the y direction
 
 		v = (int)Math.ceil(Math.random() * 4);
 
@@ -115,31 +115,39 @@ public class RabbitsGrassSimulationAgent implements Drawable {
 		return y;
 	}
 
-	public void step(int energyGain){
+	public boolean step(int energyGain, int lossReproduction, int birthThreshold) {
 		setVxVy();
 		int newX = x + vX;
 		int newY = y + vY;
-
+		boolean retVal = false;
 		Object2DGrid grid = rgSpace.getCurrentAgentSpace();
 		newX = (newX + grid.getSizeX()) % grid.getSizeX();
 		newY = (newY + grid.getSizeY()) % grid.getSizeY();
 
-		if(tryMove(newX, newY)) {
+		if (tryMove(newX, newY)) {
 //			energy += energyGain*rgSpace.takeGrassAt(x, y);
-			receiveEnergy(energyGain*rgSpace.takeGrassAt(x, y));
-		}
-//		else { // else do nothing
+			receiveEnergy(energyGain * rgSpace.takeGrassAt(x, y));
+		} else { // else do nothing
 			//setVxVy();
-			/**RabbitsGrassSimulationAgent cda = rgSpace.getAgentAt(newX, newY);
-			if (cda!= null){
-				if(energy > 0){
-					//During a collision, both rabbits lose grass
-					cda.loseEnergy(1);
-					energy--;
-				}
-			}**/
+			retVal = reproduce(newX, newY, lossReproduction, birthThreshold);
 //		}
+		}
 		energy--;
+		return retVal;
+
+	}
+
+	private boolean reproduce (int newX, int newY, int lossReproduction, int birthThreshold) {
+		RabbitsGrassSimulationAgent cda = rgSpace.getAgentAt(newX, newY);
+		if (cda!= null){
+			if(energy > birthThreshold && cda.getEnergy() > birthThreshold){
+				//During a collision, both rabbits lose grass
+				cda.loseEnergy(lossReproduction);
+				energy -= lossReproduction;
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private boolean tryMove(int newX, int newY){
