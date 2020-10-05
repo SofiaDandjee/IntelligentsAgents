@@ -23,7 +23,6 @@ public class ReactiveTemplate implements ReactiveBehavior {
 	private List<Act> actions;
 
 	class Act {
-		//An action is either pickup or move, to a destination, with a reward
 		boolean pickUp;
 		double reward;
 		private City destination;
@@ -119,14 +118,15 @@ public class ReactiveTemplate implements ReactiveBehavior {
 			actions.add(new Act(destination, false, 0));
 		}
 
+		//Create every possible state
 		states = new ArrayList<>();
 		for (City origin : topology) {
 			for (City destination : topology) {
 				if (origin != destination) {
 					states.add(new State(origin, destination, true));
-					states.add(new State(origin,null, false));
 				}
 			}
+			states.add(new State(origin,null, false));
 		}
 
 		for (State state : states) {
@@ -150,31 +150,28 @@ public class ReactiveTemplate implements ReactiveBehavior {
 		}
 		int i = 0;
 		HashMap<State, Double> temp = new HashMap<>();
-		while (i < 20) {
+		while (i < 1000) {
 			temp = V;
 			++i;
-			System.out.println(i);
+			double qValue;
 			for (State state : states) {
 				for (Act action : state.actions) {
-						double qValue = 0.0;
+						qValue = 0.0;
 						if (action.pickUp && state.task && action.destination == state.destination) {
 							qValue += td.reward(state.location, state.destination) - state.location.distanceTo(state.destination);
 						} else {
 							qValue -= state.location.distanceTo(action.destination);
 						}
 						for (State nextState : V.keySet()) {
-							if (nextState.location == action.destination && nextState.task) {
+							if (nextState.location == action.destination ) {
 								qValue+= discount*td.probability(nextState.location,nextState.destination)*V.get(nextState);
 							}
 						}
-
 						action.setReward(qValue);
-
 				}
 
 				V.put(state, state.getBestAction().reward);
 			}
-
 		}
 
 		for (State state : states) {
@@ -185,26 +182,35 @@ public class ReactiveTemplate implements ReactiveBehavior {
 	@Override
 	public Action act(Vehicle vehicle, Task availableTask) {
 		Action action;
+		System.out.println("Reactive Action.");
+
 		City currentCity = vehicle.getCurrentCity();
+		System.out.println("At " + currentCity);
 		City nextCityNoTask = null;
 		City nextCityTask = null;
 		for (State state : states) {
 			if (state.location == currentCity && !state.task) {
-				state.printState();
+				//state.printState();
 				nextCityNoTask = state.getBestAction().getDestination();
 			}
-			if (state.location == currentCity && availableTask != null && state.destination == availableTask.deliveryCity) {
-				state.printState();
+			if (state.location == currentCity && state.task && availableTask != null && state.destination == availableTask.deliveryCity) {
+				//state.printState();
 				nextCityTask = state.getBestAction().getDestination();
 			}
 		}
 
 		if (availableTask == null) {
+			System.out.println("Task not available.");
+			System.out.println("Move to "+ nextCityNoTask.name);
 			action = new Move(nextCityNoTask);
+
 		} else {
-			if (availableTask.deliveryCity.name == nextCityTask.name) {
+			System.out.println("Task available to "+ availableTask.deliveryCity);
+			if (nextCityTask!= null && availableTask.deliveryCity.name == nextCityTask.name) {
+				System.out.println("PickUp to "+ nextCityTask.name);
 				action = new Pickup(availableTask);
 			} else {
+				System.out.println("Move to "+ nextCityNoTask.name);
 				action = new Move(nextCityNoTask);
 			}
 
