@@ -115,7 +115,8 @@ public class ReactiveTemplate implements ReactiveBehavior {
 		this.pPickup = discount;
 		this.numActions = 0;
 		this.myAgent = agent;
-
+		double precisionforV = 1.0;
+		int maxiterationsforV = 10000;
 		actions = new ArrayList<>();
 		states = new ArrayList<>();
 		for (City destination : topology) {
@@ -180,7 +181,7 @@ public class ReactiveTemplate implements ReactiveBehavior {
 							bestqValue = qValue;
 						}
 				}
-				if(Math.abs(state.getBestAction().getReward()-V.get(state))>1) {
+				if(Math.abs(state.getBestAction().getReward()-V.get(state))>precisionforV && i < maxiterationsforV ) {
 					nottunedEnough = true;
 				}
 				V.put(state, state.getBestAction().getReward());
