@@ -21,6 +21,7 @@ public class ReactiveTemplate implements ReactiveBehavior {
 	private Agent myAgent;
 	private List<State> states;
 	private List<Act> actions;
+	private HashMap<State, Act> Vact;
 
 	class Act {
 		boolean pickUp;
@@ -146,7 +147,7 @@ public class ReactiveTemplate implements ReactiveBehavior {
 		}
 
 		HashMap<State, Double> V = new HashMap<State, Double>();
-
+		Vact = new HashMap<State, Act>();
 		//Initialize V values
 		for (State state : states) {
 			V.put(state, 0.0);
@@ -179,11 +180,11 @@ public class ReactiveTemplate implements ReactiveBehavior {
 							bestqValue = qValue;
 						}
 				}
-				if(Math.abs(state.getBestAction().getReward()-bestqValue)>1 || i < 10) {
+				if(Math.abs(state.getBestAction().getReward()-V.get(state))>1) {
 					nottunedEnough = true;
 				}
-
 				V.put(state, state.getBestAction().getReward());
+				Vact.put(state, state.getBestAction());
 			}
 		}
 		System.out.println("Took "+i+" iterations to solve");
