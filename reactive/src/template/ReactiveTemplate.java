@@ -37,7 +37,7 @@ public class ReactiveTemplate implements ReactiveBehavior {
 			if (pickUp) {
 				System.out.print("Pick up");
 			} else {
-				System.out.print("Move to");
+				System.out.print("Move");
 			}
 			System.out.println(" to " + destination);
 			System.out.println("With reward ");
@@ -54,6 +54,10 @@ public class ReactiveTemplate implements ReactiveBehavior {
 
 		void setReward(double r) {
 			reward = r;
+		}
+
+		public double getReward() {
+			return reward;
 		}
 	}
 
@@ -72,9 +76,9 @@ public class ReactiveTemplate implements ReactiveBehavior {
 			double score = Double.NEGATIVE_INFINITY;
 			Act best = null;
 			for (Act action : actions) {
-				if (action.reward >= score) {
+				if (action.getReward() >= score) {
 					best = action;
-					score = best.reward;
+					score = best.getReward();
 				}
 			}
 			return best;
@@ -117,7 +121,7 @@ public class ReactiveTemplate implements ReactiveBehavior {
 			actions.add(new Act(destination, true, 0));
 			actions.add(new Act(destination, false, 0));
 		}
-
+		// initializing all the possible states
 		//Create every possible state
 		states = new ArrayList<>();
 		for (City origin : topology) {
@@ -128,7 +132,7 @@ public class ReactiveTemplate implements ReactiveBehavior {
 			}
 			states.add(new State(origin,null, false));
 		}
-
+		// Adding possible actions for each state
 		for (State state : states) {
 			for (Act action: actions) {
 				if (state.task && action.pickUp && action.destination == state.destination) {
@@ -137,7 +141,6 @@ public class ReactiveTemplate implements ReactiveBehavior {
 					state.addAction(action);
 				} else if (!state.task && !action.pickUp && state.location.hasNeighbor(action.destination)) {
 					state.addAction(action);
-
 				}
 			}
 		}
@@ -149,18 +152,22 @@ public class ReactiveTemplate implements ReactiveBehavior {
 			V.put(state, 0.0);
 		}
 		int i = 0;
-		HashMap<State, Double> temp = new HashMap<>();
-		while (i < 1000) {
-			temp = V;
+		boolean nottunedEnough = true;
+		System.out.println("Training...");
+
+		while (nottunedEnough) {
 			++i;
 			double qValue;
+			double bestqValue;
+			nottunedEnough = false;
 			for (State state : states) {
+				bestqValue = 0.0;
 				for (Act action : state.actions) {
 						qValue = 0.0;
 						if (action.pickUp && state.task && action.destination == state.destination) {
-							qValue += td.reward(state.location, state.destination) - state.location.distanceTo(state.destination);
+							qValue += td.reward(state.location, state.destination)/state.location.distanceTo(state.destination)-agent.vehicles().get(0).costPerKm();
 						} else {
-							qValue -= state.location.distanceTo(action.destination);
+							qValue -= agent.vehicles().get(0).costPerKm();
 						}
 						for (State nextState : V.keySet()) {
 							if (nextState.location == action.destination ) {
@@ -168,11 +175,18 @@ public class ReactiveTemplate implements ReactiveBehavior {
 							}
 						}
 						action.setReward(qValue);
+						if (bestqValue < qValue){
+							bestqValue = qValue;
+						}
+				}
+				if(Math.abs(state.getBestAction().getReward()-bestqValue)>1 || i < 10) {
+					nottunedEnough = true;
 				}
 
-				V.put(state, state.getBestAction().reward);
+				V.put(state, state.getBestAction().getReward());
 			}
 		}
+		System.out.println("Took "+i+" iterations to solve");
 
 		for (State state : states) {
 			state.printState();
@@ -183,7 +197,6 @@ public class ReactiveTemplate implements ReactiveBehavior {
 	public Action act(Vehicle vehicle, Task availableTask) {
 		Action action;
 		System.out.println("Reactive Action.");
-
 		City currentCity = vehicle.getCurrentCity();
 		System.out.println("At " + currentCity);
 		City nextCityNoTask = null;
@@ -203,7 +216,6 @@ public class ReactiveTemplate implements ReactiveBehavior {
 			System.out.println("Task not available.");
 			System.out.println("Move to "+ nextCityNoTask.name);
 			action = new Move(nextCityNoTask);
-
 		} else {
 			System.out.println("Task available to "+ availableTask.deliveryCity);
 			if (nextCityTask!= null && availableTask.deliveryCity.name == nextCityTask.name) {
@@ -213,7 +225,6 @@ public class ReactiveTemplate implements ReactiveBehavior {
 				System.out.println("Move to "+ nextCityNoTask.name);
 				action = new Move(nextCityNoTask);
 			}
-
 		}
 		
 		if (numActions >= 1) {
