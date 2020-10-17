@@ -7,7 +7,37 @@
 	<agent name="reactive-random">
 		<set class-path="bin/"/>
 		<set class-name="template.ReactiveTemplate"/>
-		<set discount-factor=".85"/>
+		<set discount-factor="0.5"/>
 	</agent>
-	
+<!--	<agent name="reactive-random">-->
+<!--		<set class-path="bin/"/>-->
+<!--		<set class-name="template.ReactiveTemplate"/>-->
+<!--		<set discount-factor="0"/>-->
+<!--	</agent>-->
+<!--	<agent name="reactive-random2">-->
+<!--		<set class-path="bin/"/>-->
+<!--		<set class-name="template.ReactiveTemplate"/>-->
+<!--		<set discount-factor="0.5"/>-->
+<!--	</agent>-->
+<!--	<agent name="reactive-random3">-->
+<!--		<set class-path="bin/"/>-->
+<!--		<set class-name="template.ReactiveTemplate"/>-->
+<!--		<set discount-factor="0.85"/>-->
+<!--	</agent>-->
+<!--	<agent name="reactive-random4">-->
+<!--		<set class-path="bin/"/>-->
+<!--		<set class-name="template.ReactiveTemplate"/>-->
+<!--		<set discount-factor="0.95"/>-->
+<!--	</agent>-->
+<!--	<agent name="reactive-random5">-->
+<!--		<set class-path="bin/"/>-->
+<!--		<set class-name="template.ReactiveTemplate"/>-->
+<!--		<set discount-factor="0.99"/>-->
+<!--	</agent>-->
+<!--	<agent name="reactive-random6">-->
+<!--		<set class-path="bin/"/>-->
+<!--		<set class-name="template.ReactiveTemplate"/>-->
+<!--		<set discount-factor="1"/>-->
+<!--	</agent>-->
+
 </agents>
