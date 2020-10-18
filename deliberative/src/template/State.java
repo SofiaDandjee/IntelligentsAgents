@@ -5,111 +5,101 @@ import logist.plan.Plan;
 import logist.simulation.Vehicle;
 import logist.task.Task;
 import logist.topology.Topology;
+import logist.task.TaskSet;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class State {
 
+    private State parent_state;
     private Vehicle vehicle;
     private Topology.City agentCity;
-    private List<Task> carried;
-    private List<Task> unhandled;
+    private TaskSet carried;
+//    private TaskSet delivered;
+    private TaskSet unhandled;
 
-    private List<Action> actions;
-    private Plan plan;
+//    private List<Action> actions;
+//    private Plan plan;
 
-    State(Topology.City c, Vehicle v, List<Task> carried_ , List<Task> unhandled_, List<Action> actions_, Plan p) {
-        agentCity = c;
-        vehicle = v;
-        carried = new ArrayList<>(carried_);
-        unhandled = new ArrayList<>(unhandled_);
-        actions = new ArrayList<>(actions_);
-        plan = p;
+    State(State parent_state,Topology.City c, Vehicle v, TaskSet carried_ , TaskSet unhandled_) {
+        this.parent_state = parent_state;
+        this.agentCity = c;
+        this.vehicle = v;
+        this.carried = carried_;
+        this.unhandled = unhandled_;
+//        this.delivered = delivered_;
+
     }
-
+//    boolean isEqualState(State otherState){
+//        if(this.getAgentCity()==otherState.getAgentCity() && this.getVehicle()== otherState.getVehicle()
+//        && this.getCarried()==otherState.getCarried() && this.getUnhandled()==otherState.getUnhandled()){
+//            return true;
+//        }
+//        return false;
+//    }
     boolean isFinal() {
-        return unhandled.isEmpty() && carried.isEmpty();
+        return this.unhandled.isEmpty() && this.carried.isEmpty();
     }
 
-    List<State> getReachableStates() {
+    List<State> getReachableStates2() {
         List<State> children = new ArrayList<>();
-        State pickUpState;
-        // Deliver && deliver and move to neighbours (only one because we automatically deliver every package)
-        State deliverState = deliver();
-        if (deliverState != null) {
-            children.add(deliverState);
-            for (Topology.City city : agentCity.neighbors()) {
-                children.add(deliverState.move(city));
-            }
-            pickUpState = deliverState.pickUp();
-        } else {
-            pickUpState = pickUp();
-            for (Topology.City n : agentCity.neighbors()) {
-                children.add(move(n));
-            }
-        }
 
+        TaskSet deliverableCarried = TaskSet.copyOf(this.carried);
+//        TaskSet deliverableTasks = TaskSet.copyOf(this.delivered);
+//        for (Task task : canDeliver()) {
+////            deliverableCarried.remove(task);
+////            deliverableTasks.add(task);
+//            carried.remove(task);
+//            delivered.add(task);
+//        }
+//        this.setDelivered(deliverable_tasks);
 
-        //PickUp as much tasks as he can and move to neighbours
-        //State pickUpState = pickUp();
-        if (pickUpState != null) {
-            for (Topology.City city : agentCity.neighbors()) {
-                children.add(pickUpState.move(city));
+//        TaskSet canDeliver = TaskSet.noneOf(unhandled);
+        boolean miniflag2= false;
+        for (Task task : this.carried) {
+            if (task.deliveryCity.equals(this.agentCity)) {
+                deliverableCarried.remove(task);
+//                deliverableTasks.add(task);
+                miniflag2 = true;
+//                canDeliver.add(task);
             }
         }
+//        for (Topology.City city : agentCity.neighbors()) {
+//            children.add(new State(this, city, this.vehicle, deliverableCarried, this.unhandled, deliverableTasks));
+//        }
+        TaskSet newCarried = TaskSet.copyOf(deliverableCarried);
+//        if (miniflag2){
+//            newCarried = TaskSet.copyOf(deliverableCarried);
+//        }
 
+        TaskSet newUnhandled = TaskSet.copyOf(this.unhandled);
+//        TaskSet newCarried = TaskSet.copyOf(carried);
 
-
-        return children;
-    }
-
-    State deliver() {
-        List<Task> newCarried = this.carried;
-        List<Action> newActions = new ArrayList<>();
-        Plan newPlan = this.plan;
-        for (Task task : canDeliver()) {
-                newCarried.remove(task);
-                newActions.add(new Action.Delivery(task));
-                newPlan.appendDelivery(task);
-        }
-        if (newActions.isEmpty()) {
-            return null;
-        } else return new State(this.agentCity, this.vehicle, newCarried, this.unhandled, actions, newPlan);
-    }
-
-    State move(Topology.City c) {
-        List<Action> newAction = new ArrayList<>();
-        newAction.add(new Action.Move(c));
-        Plan newPlan = this.plan;
-        newPlan.appendMove(c);
-        return new State(c, this.vehicle, this.carried, this.unhandled, newAction, newPlan);
-    }
-
-    State pickUp() {
-        List<Task> newUnhandled = new ArrayList<>(this.unhandled);
-        List<Task> newCarried = new ArrayList<>(this.carried);
-
-        ArrayList<Action> newActions = new ArrayList<>();
-        Plan newPlan = this.plan;
-        int canCarry = vehicle.capacity() - weightCarried();
-        for (Task task : canPickUp()) {
+        int canCarry = this.vehicle.capacity() - this.weightCarried();
+        boolean miniflag = false;
+        for (Task task : this.canPickUp()) {
             if (canCarry >= task.weight) {
                 newUnhandled.remove(task);
                 newCarried.add(task);
                 canCarry -= task.weight;
-                newPlan.appendPickup(task);
-                newActions.add(new Action.Pickup(task));
+                miniflag = true;
             }
         }
+//        if (miniflag2) {}
 
-        if (newActions.isEmpty()) {
-            return null;
-        } else {
-            return new State(this.agentCity, this.vehicle, newCarried, newUnhandled, newActions, newPlan);
-        }
+            for (Topology.City city : agentCity.neighbors()) {
+                if(miniflag2)
+                    children.add(new State(this, city, this.vehicle, deliverableCarried, this.unhandled));
+                else
+                    children.add(new State(this, city, this.vehicle, this.carried, this.unhandled));
+                if (miniflag) {
+                    children.add(new State(this, city, this.vehicle, newCarried, newUnhandled));
+                }
+            }
+
+        return children;
     }
-
     int weightCarried() {
         int weight = 0;
         if (!carried.isEmpty()) {
@@ -120,12 +110,8 @@ public class State {
         return weight;
     }
 
-    Plan getPlan() {
-        return plan;
-    }
-
-    List<Task> canPickUp() {
-        List<Task> canPickUp = new ArrayList<>();
+    TaskSet canPickUp() {
+        TaskSet canPickUp = TaskSet.noneOf(this.unhandled);//new ArrayList<>();
         for (Task task : this.unhandled) {
             if (task.pickupCity.equals(agentCity)) {
                 canPickUp.add(task);
@@ -134,8 +120,8 @@ public class State {
         return canPickUp;
     }
 
-    List<Task> canDeliver() {
-        List<Task> canDeliver = new ArrayList<>();
+    TaskSet canDeliver() {
+        TaskSet canDeliver = TaskSet.noneOf(unhandled);
         for (Task task : this.carried) {
             if (task.deliveryCity.equals(agentCity)) {
                 canDeliver.add(task);
@@ -146,5 +132,37 @@ public class State {
 
     Topology.City getAgentCity() {
         return agentCity;
+    }
+
+    public Vehicle getVehicle() {
+        return vehicle;
+    }
+
+    public TaskSet getCarried() {
+        return carried;
+    }
+
+    public TaskSet getUnhandled() {
+        return unhandled;
+    }
+
+    public State getParent() {
+        return parent_state;
+    }
+
+//    public TaskSet getDelivered() {
+//        return delivered;
+//    }
+
+    public void setCarried(TaskSet carried) {
+        this.carried = carried;
+    }
+
+//    public void setDelivered(TaskSet delivered) {
+//        this.delivered = delivered;
+//    }
+
+    public void setUnhandled(TaskSet unhandled) {
+        this.unhandled = unhandled;
     }
 }

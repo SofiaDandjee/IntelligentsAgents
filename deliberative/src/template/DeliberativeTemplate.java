@@ -21,7 +21,7 @@ import java.util.*;
 @SuppressWarnings("unused")
 public class DeliberativeTemplate implements DeliberativeBehavior {
 
-	enum Algorithm { BFS, ASTAR }
+	enum Algorithm { BFS, ASTAR, NAIVE }
 	
 	/* Environment */
 	Topology topology;
@@ -55,20 +55,28 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 	public Plan plan(Vehicle vehicle, TaskSet tasks) {
 		City current = vehicle.getCurrentCity();
 		Plan plan = new Plan(current);
-		List<Task> t = new ArrayList<Task>(tasks);
-		List<Task> carried = new ArrayList<>(vehicle.getCurrentTasks());
-		State init = new State(current, vehicle, carried, t, Collections.<Action>emptyList(), plan);
+//		List<Task> t = new ArrayList<Task>(tasks);
+		TaskSet carried = vehicle.getCurrentTasks();
+		TaskSet delivered = TaskSet.noneOf(tasks);//new ArrayList<>();
+
+		State init = new State(null, current, vehicle, carried, tasks);
 
 		// Compute the plan with the selected algorithm.
 		switch (algorithm) {
 		case ASTAR:
 			// ...
-			plan = naivePlan(vehicle, tasks);
+//			plan = naivePlan(vehicle, tasks);
 			break;
 		case BFS:
 			// ...
 			System.out.println("BFS ALGORITHM");
-			plan = BFS(init, vehicle);
+			plan = computeFinalPlan(plan, BFS(init, vehicle));
+			System.out.println("Cost of optimal plan");
+			break;
+		case NAIVE:
+			// ...
+			System.out.println("Naive ALGORITHM");
+			plan = naivePlan(vehicle, tasks);
 			//System.out.println("Cost of optimal plan");
 			break;
 		default:
@@ -77,26 +85,25 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 		return plan;
 	}
 
-	private Plan BFS(State initialNode, Vehicle vehicle) {
+	private State BFS(State initialNode, Vehicle vehicle) {
 
 		//State Q = initialNode;
-		List<State> toVisit = new ArrayList<State>();
+		Queue<State> toVisit = new LinkedList<State>();
 		toVisit.add(initialNode);
-		List<State> visited = new ArrayList<>();
+		HashSet<State> visited = new HashSet<State>();
 		State optimalState = initialNode;
-		double optimalCost = Double.POSITIVE_INFINITY;
+//		double optimalCost = Double.POSITIVE_INFINITY;
 		int numVisited = 0;
 		while (!toVisit.isEmpty()) {
-			State current = toVisit.get(0);
-			toVisit.remove(current);
-			if (current.isFinal() && current.getPlan().totalDistance()*vehicle.costPerKm() < optimalCost) {
-				System.out.println("Final node encountered!");
-				optimalCost = current.getPlan().totalDistance()*vehicle.costPerKm();
-				optimalState = current;
+			State current = toVisit.remove();
+			if (current.isFinal()) {
+//			if (current.isFinal() && current.getPlan().totalDistance()*vehicle.costPerKm() < optimalCost) {
+				System.out.println("A final node encountered!");
+				return current;
 			}
 			if (!visited.contains(current)) {
 				visited.add(current);
-				List<State> children = current.getReachableStates();
+				List<State> children = current.getReachableStates2();
 				toVisit.addAll(children);
 				++numVisited;
 				System.out.println(numVisited);
@@ -104,7 +111,8 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 
 		}
 		System.out.println("OPTIMAL PLAN FOUND WITH"+ numVisited+ "ITERATIONS");
-		return optimalState.getPlan();
+		return optimalState;
+		// Todo: return fail???
 	}
 
 	private Plan naivePlan(Vehicle vehicle, TaskSet tasks) {
@@ -128,6 +136,52 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 			current = task.deliveryCity;
 		}
 		return plan;
+	}
+	public Plan computeFinalPlan(Plan plan, State state){
+
+		if(state == null){
+//			print("no plan");
+			return null;
+		}
+		//reorder nodes
+		Stack<State> stack = new Stack<State>();
+		stack.push(state);
+		while(state.getParent() != null){
+			state = state.getParent();
+			stack.push(state);
+		}
+
+		State n1 = stack.pop();
+		State n2 = n1;
+		while(!stack.isEmpty()){
+			n2 = stack.pop();
+			//deliver in city_old, pick up in city_old, move to city_new
+			addActions(plan, n1, n2);
+			n1 = n2;
+		}
+		//deliver the tasks on the last city.
+		TaskSet lastDelivery = n1.getCarried();
+		for(Task task : lastDelivery)
+			plan.appendDelivery(task);
+
+
+		return plan;
+	}
+	public void addActions(Plan plan, State n1, State n2){
+
+		//Deliver tasks
+//		TaskSet delivery = TaskSet.intersectComplement(n2.getDelivered(), n1.getDelivered());
+		TaskSet delivery = TaskSet.intersectComplement(n1.getCarried(), n2.getCarried());
+		for(Task task : delivery)
+			plan.appendDelivery(task);
+
+		//Pickup tasks
+		TaskSet pickup = TaskSet.intersectComplement(n1.getUnhandled(), n2.getUnhandled());
+		for(Task task : pickup)
+			plan.appendPickup(task);
+
+		//Move city
+		plan.appendMove(n2.getAgentCity());
 	}
 
 	@Override
