@@ -54,8 +54,10 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 	@Override
 	public Plan plan(Vehicle vehicle, TaskSet tasks) {
 		City current = vehicle.getCurrentCity();
-		Plan plan = new Plan(current);
-
+		Plan plan;// = new Plan(current);
+		TopologyStats topologyStats = TopologyStats.getInstance(this.topology);
+//		HashMap<City, Double> minDistMap = topologyStats.getMinDistMap();
+//		HashMap<City, Double> maxDistMap = topologyStats.getMaxDistMap();
 		ArrayList<Task> t = new ArrayList<Task>(tasks);
 		ArrayList<Task> carried = new ArrayList<Task>(vehicle.getCurrentTasks());
 		State init = new State(current, vehicle, carried, t, Collections.<Action>emptyList(), 0.);
@@ -88,27 +90,21 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 	private Plan ASTAR(State initialNode, Vehicle vehicle) {
 
 
-//		Queue<State> toVisit = new LinkedList<State>();
 		HashSet<State> visited = new HashSet<State>();
 		HashMap<State, Double> toVisitMap = new HashMap<State, Double>();
-//		HashMap<State, Double> visitedMap = new HashMap<State, Double>();
 
-//		toVisit.add(initialNode);
 		toVisitMap.put(initialNode, 0.);
 		double optimalCost = Double.POSITIVE_INFINITY;
 		double costCurrent = 0;
 		List<Action> actionsCurrent;
-//		Plan currentPlan;
-//		Plan optimalPlan = new Plan(vehicle.getCurrentCity());
 		int numVisited = 0;
 		while (!toVisitMap.isEmpty()) {
-//			State current = toVisit.remove();
 			State current = Collections.min(toVisitMap.entrySet(), (entry1, entry2) -> (int) (entry1.getValue() - entry2.getValue()) ).getKey();
 			toVisitMap.remove(current);
 			if (current.isFinal()) {
 				actionsCurrent = current.getActions();
+				System.out.println("OPTIMAL PLAN FOUND WITH Astar " + numVisited + " ITERATIONS");
 				return new Plan(vehicle.getCurrentCity(), actionsCurrent);
-
 			}
 
 			boolean alreadyVisited = false;
@@ -122,7 +118,6 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 				visited.add(current);
 				ArrayList<State> children = current.getReachableStates();
 				++numVisited;
-//				toVisit.addAll(children);
 				for (State childstate: children){
 					toVisitMap.put(childstate, childstate.getTotalCost());
 				}

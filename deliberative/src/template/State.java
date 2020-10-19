@@ -6,10 +6,7 @@ import logist.simulation.Vehicle;
 import logist.task.Task;
 import logist.topology.Topology;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class State {
 
@@ -19,7 +16,16 @@ public class State {
     private List<Task> unhandled;
     private double init_cost;
     private List<Action> actions;
+    private TopologyStats topologyStats;
 
+    public State(Topology.City c, Vehicle v, List<Task> carried_ , List<Task> unhandled_, List<Action> ac, double initial_cost) {
+        this.agentCity = c;
+        this.vehicle = v;
+        this.carried = new ArrayList<>(carried_);
+        this.unhandled = new ArrayList<>(unhandled_);
+        this.actions = ac;
+        this.init_cost = initial_cost;
+    }
 
     public boolean equals(State s) {
         return this.agentCity.equals(s.getAgentCity()) && this.carried.equals(s.getCarried()) && this.unhandled.equals(s.getUnhandled());
@@ -37,26 +43,18 @@ public class State {
         return actions;
     }
 
-    State(Topology.City c, Vehicle v, List<Task> carried_ , List<Task> unhandled_, List<Action> ac, double initial_cost) {
-        agentCity = c;
-        vehicle = v;
-        carried = new ArrayList<>(carried_);
-        unhandled = new ArrayList<>(unhandled_);
-        actions = ac;
-        init_cost = initial_cost;
-    }
 
     public boolean isFinal() {
         return unhandled.isEmpty() && carried.isEmpty();
     }
 
-    public State(State s) {
-        this.agentCity = s.agentCity;
-        this.unhandled = s.unhandled;
-        this.carried = s.carried;
-        this.actions = s.actions;
-        this.init_cost = s.init_cost;
-    }
+//    public State(State s) {
+//        this.agentCity = s.agentCity;
+//        this.unhandled = s.unhandled;
+//        this.carried = s.carried;
+//        this.actions = s.actions;
+//        this.init_cost = s.init_cost;
+//    }
 
     public ArrayList<State> getReachableStates() {
         ArrayList<State> children = new ArrayList<>();
@@ -164,8 +162,37 @@ public class State {
         return agentCity;
     }
 
+    public double getEstimatedCostEasy() {
+        double estCost = this.unhandled.size()*40; // minimum cost
+        return estCost;
+    }
+    public double getEstimatedCost_twoStepHorizon() {
+        double estCost = this.unhandled.size()*40;
+        List<State> state_list = new ArrayList<State>();
+        state_list.add(this);
+        for(State st: state_list) {
+            List<State> ss = new ArrayList<State>(st.getReachableStates());
+
+            for(State s: ss) {
+                if(s.isFinal()) {
+                    return new Plan(vehicle.getCurrentCity(), this.actions).totalDistance() * this.vehicle.costPerKm();
+                }
+            }
+        }
+        return 1000.0;
+    }
     public double getEstimatedCost() {
-        double estCost = this.unhandled.size()*50;
+//        HashMap<Topology.City, Double> maxDistMap = TopologyStats.getInstance().getMaxDistMap();
+        HashMap<Topology.City, Double> minDistMap = TopologyStats.getInstance().getMinDistMap();
+        double estCost = 0;
+
+        for (Task taskremain: this.unhandled){
+            estCost += minDistMap.get(taskremain.deliveryCity)/2;
+            estCost += minDistMap.get(taskremain.pickupCity)/2;
+        }
+        for (Task taskcarrying: this.carried){
+            estCost += minDistMap.get(taskcarrying.deliveryCity);
+        }
         return estCost;
     }
     public double getTotalCost() {
