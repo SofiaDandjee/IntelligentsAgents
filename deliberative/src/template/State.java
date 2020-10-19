@@ -17,7 +17,7 @@ public class State {
     private Topology.City agentCity;
     private List<Task> carried;
     private List<Task> unhandled;
-
+    private double init_cost;
     private List<Action> actions;
 
 
@@ -37,12 +37,13 @@ public class State {
         return actions;
     }
 
-    State(Topology.City c, Vehicle v, List<Task> carried_ , List<Task> unhandled_, List<Action> ac) {
+    State(Topology.City c, Vehicle v, List<Task> carried_ , List<Task> unhandled_, List<Action> ac, double initial_cost) {
         agentCity = c;
         vehicle = v;
         carried = new ArrayList<>(carried_);
         unhandled = new ArrayList<>(unhandled_);
         actions = ac;
+        init_cost = initial_cost;
     }
 
     public boolean isFinal() {
@@ -54,6 +55,7 @@ public class State {
         this.unhandled = s.unhandled;
         this.carried = s.carried;
         this.actions = s.actions;
+        this.init_cost = s.init_cost;
     }
 
     public ArrayList<State> getReachableStates() {
@@ -95,7 +97,7 @@ public class State {
                 newCarried.remove(task);
                 newActions.add(new Action.Delivery(task));
             }
-            return new State(this.agentCity, this.vehicle, newCarried, this.unhandled, newActions);
+            return new State(this.agentCity, this.vehicle, newCarried, this.unhandled, newActions, this.init_cost);
         }
 
     }
@@ -103,7 +105,7 @@ public class State {
     public State move(Topology.City c) {
         List<Action> newActions = new ArrayList<Action>(this.actions);
         newActions.add(new Action.Move(c));
-        return new State(c, this.vehicle, this.carried, this.unhandled, newActions);
+        return new State(c, this.vehicle, this.carried, this.unhandled, newActions, this.init_cost+this.agentCity.distanceTo(c) );
     }
 
     public State pickUp() {
@@ -122,10 +124,8 @@ public class State {
                     newActions.add(new Action.Pickup(task));
                 }
             }
-            return new State(this.agentCity, this.vehicle, newCarried, newUnhandled, newActions);
+            return new State(this.agentCity, this.vehicle, newCarried, newUnhandled, newActions, this.init_cost);
         }
-
-
     }
 
     public int weightCarried() {
@@ -164,4 +164,11 @@ public class State {
         return agentCity;
     }
 
+    public double getEstimatedCost() {
+        double estCost = this.unhandled.size()*50;
+        return estCost;
+    }
+    public double getTotalCost() {
+        return init_cost+ this.getEstimatedCost();
+    }
 }

@@ -58,7 +58,7 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 
 		ArrayList<Task> t = new ArrayList<Task>(tasks);
 		ArrayList<Task> carried = new ArrayList<Task>(vehicle.getCurrentTasks());
-		State init = new State(current, vehicle, carried, t, Collections.<Action>emptyList());
+		State init = new State(current, vehicle, carried, t, Collections.<Action>emptyList(), 0.);
 		State found = null;
 		long start = System.currentTimeMillis();
 		// Compute the plan with the selected algorithm.
@@ -66,7 +66,7 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 		switch (algorithm) {
 		case ASTAR:
 			// ...
-			plan = naivePlan(vehicle, tasks);
+			plan = ASTAR(init, vehicle);
 			end = System.currentTimeMillis();
 			break;
 		case BFS:
@@ -85,6 +85,54 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 		System.out.println("Optimal cost : " + plan.totalDistance()*vehicle.costPerKm());
 		return plan;
 	}
+	private Plan ASTAR(State initialNode, Vehicle vehicle) {
+
+
+//		Queue<State> toVisit = new LinkedList<State>();
+		HashSet<State> visited = new HashSet<State>();
+		HashMap<State, Double> toVisitMap = new HashMap<State, Double>();
+//		HashMap<State, Double> visitedMap = new HashMap<State, Double>();
+
+//		toVisit.add(initialNode);
+		toVisitMap.put(initialNode, 0.);
+		double optimalCost = Double.POSITIVE_INFINITY;
+		double costCurrent = 0;
+		List<Action> actionsCurrent;
+//		Plan currentPlan;
+//		Plan optimalPlan = new Plan(vehicle.getCurrentCity());
+		int numVisited = 0;
+		while (!toVisitMap.isEmpty()) {
+//			State current = toVisit.remove();
+			State current = Collections.min(toVisitMap.entrySet(), (entry1, entry2) -> (int) (entry1.getValue() - entry2.getValue()) ).getKey();
+			toVisitMap.remove(current);
+			if (current.isFinal()) {
+				actionsCurrent = current.getActions();
+				return new Plan(vehicle.getCurrentCity(), actionsCurrent);
+
+			}
+
+			boolean alreadyVisited = false;
+			for(State s: visited) {
+				if(s.equals(current) && (s.getTotalCost()<=current.getTotalCost())) {
+					alreadyVisited = true;
+					break;
+				}
+			}
+			if(! alreadyVisited) {
+				visited.add(current);
+				ArrayList<State> children = current.getReachableStates();
+				++numVisited;
+//				toVisit.addAll(children);
+				for (State childstate: children){
+					toVisitMap.put(childstate, childstate.getTotalCost());
+				}
+			}
+
+		}
+		System.out.println("OPTIMAL PLAN COULD NOT REACHED!");
+		return null;
+	}
+
 
 	private Plan BFS(State initialNode, Vehicle vehicle) {
 
