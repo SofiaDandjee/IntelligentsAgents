@@ -57,32 +57,36 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 		Plan plan = new Plan(current);
 
 		ArrayList<Task> t = new ArrayList<Task>(tasks);
-		ArrayList<Task> carried = new ArrayList<>(vehicle.getCurrentTasks());
+		ArrayList<Task> carried = new ArrayList<Task>(vehicle.getCurrentTasks());
 		State init = new State(current, vehicle, carried, t, Collections.<Action>emptyList());
 		State found = null;
+		long start = System.currentTimeMillis();
 		// Compute the plan with the selected algorithm.
+		long end;
 		switch (algorithm) {
 		case ASTAR:
 			// ...
 			plan = naivePlan(vehicle, tasks);
+			end = System.currentTimeMillis();
 			break;
 		case BFS:
 			// ...
 			System.out.println("BFS ALGORITHM");
-			found = BFS(init, vehicle);
-
+			plan = BFS(init, vehicle);
+			end = System.currentTimeMillis();
 			break;
 		default:
 			throw new AssertionError("Should not happen.");
 		}
 
-		List<Action> finalActions = found.getActions();
-		Plan finalPlan = new Plan(vehicle.getCurrentCity(), finalActions);
-		System.out.println("Optimal cost : " + finalPlan.totalDistance()*vehicle.costPerKm());
-		return finalPlan;
+		//List<Action> finalActions = found.getActions();
+		//Plan finalPlan = new Plan(vehicle.getCurrentCity(), finalActions);
+		System.out.println("Computation time : " + (end-start)/1000 + " seconds.");
+		System.out.println("Optimal cost : " + plan.totalDistance()*vehicle.costPerKm());
+		return plan;
 	}
 
-	private State BFS(State initialNode, Vehicle vehicle) {
+	private Plan BFS(State initialNode, Vehicle vehicle) {
 
 
 		Queue<State> toVisit = new LinkedList<State>();
@@ -90,13 +94,25 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 
 		toVisit.add(initialNode);
 
+		double optimalCost = Double.POSITIVE_INFINITY;
+		double costCurrent = 0;
+		List<Action> actionsCurrent;
+		Plan currentPlan;
+		Plan optimalPlan = new Plan(vehicle.getCurrentCity());
 		int numVisited = 0;
 		while (!toVisit.isEmpty()) {
 			State current = toVisit.remove();
 
 			if (current.isFinal()) {
-				System.out.println("OPTIMAL PLAN FOUND WITH " + numVisited + " ITERATIONS");
-				return current;
+				actionsCurrent = current.getActions();
+				currentPlan = new Plan(vehicle.getCurrentCity(), actionsCurrent);
+				costCurrent = currentPlan.totalDistance()*vehicle.costPerKm();
+				//System.out.println("Final node encountered!");
+				if (costCurrent < optimalCost) {
+					optimalCost = costCurrent;
+					optimalPlan = currentPlan;
+				}
+
 			}
 
 			boolean alreadyVisited = false;
@@ -114,7 +130,8 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 			}
 
 		}
-		return initialNode;
+		System.out.println("OPTIMAL PLAN FOUND WITH BFS " + numVisited + " ITERATIONS");
+		return optimalPlan;
 	}
 
 
