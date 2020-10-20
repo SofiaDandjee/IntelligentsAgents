@@ -21,7 +21,7 @@ import java.util.*;
 @SuppressWarnings("unused")
 public class DeliberativeTemplate implements DeliberativeBehavior {
 
-	enum Algorithm { BFS, ASTAR }
+	enum Algorithm { BFS, ASTAR, NAIVE }
 	
 	/* Environment */
 	Topology topology;
@@ -47,17 +47,13 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 		// Throws IllegalArgumentException if algorithm is unknown
 		algorithm = Algorithm.valueOf(algorithmName.toUpperCase());
 		
-		// ...
 	}
-
 
 	@Override
 	public Plan plan(Vehicle vehicle, TaskSet tasks) {
 		City current = vehicle.getCurrentCity();
-		Plan plan;// = new Plan(current);
+		Plan plan;
 		TopologyStats topologyStats = TopologyStats.getInstance(this.topology);
-//		HashMap<City, Double> minDistMap = topologyStats.getMinDistMap();
-//		HashMap<City, Double> maxDistMap = topologyStats.getMaxDistMap();
 		ArrayList<Task> t = new ArrayList<Task>(tasks);
 		ArrayList<Task> carried = new ArrayList<Task>(vehicle.getCurrentTasks());
 		State init = new State(current, vehicle, carried, t, Collections.<Action>emptyList(), 0.);
@@ -77,22 +73,23 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 			plan = BFS(init, vehicle);
 			end = System.currentTimeMillis();
 			break;
+
+		case NAIVE:
+			// ...
+			System.out.println("NAIVE ALGORITHM");
+			plan = naivePlan(vehicle, tasks);
+			end = System.currentTimeMillis();
+			break;
 		default:
 			throw new AssertionError("Should not happen.");
 		}
-
-		//List<Action> finalActions = found.getActions();
-		//Plan finalPlan = new Plan(vehicle.getCurrentCity(), finalActions);
 		System.out.println("Computation time : " + (end-start)/1000 + " seconds.");
 		System.out.println("Optimal cost : " + plan.totalDistance()*vehicle.costPerKm());
 		return plan;
 	}
 	private Plan ASTAR(State initialNode, Vehicle vehicle) {
-
-
 		HashSet<State> visited = new HashSet<State>();
 		HashMap<State, Double> toVisitMap = new HashMap<State, Double>();
-
 		toVisitMap.put(initialNode, 0.);
 		double optimalCost = Double.POSITIVE_INFINITY;
 		double costCurrent = 0;
@@ -106,7 +103,6 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 				System.out.println("OPTIMAL PLAN FOUND WITH Astar " + numVisited + " ITERATIONS");
 				return new Plan(vehicle.getCurrentCity(), actionsCurrent);
 			}
-
 			boolean alreadyVisited = false;
 			for(State s: visited) {
 				if(s.equals(current) && (s.getTotalCost()<=current.getTotalCost())) {
@@ -122,12 +118,11 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 					toVisitMap.put(childstate, childstate.getTotalCost());
 				}
 			}
-
 		}
 		System.out.println("OPTIMAL PLAN COULD NOT REACHED!");
 		return null;
+//		System.exit(0);
 	}
-
 
 	private Plan BFS(State initialNode, Vehicle vehicle) {
 
@@ -150,12 +145,10 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 				actionsCurrent = current.getActions();
 				currentPlan = new Plan(vehicle.getCurrentCity(), actionsCurrent);
 				costCurrent = currentPlan.totalDistance()*vehicle.costPerKm();
-				//System.out.println("Final node encountered!");
 				if (costCurrent < optimalCost) {
 					optimalCost = costCurrent;
 					optimalPlan = currentPlan;
 				}
-
 			}
 
 			boolean alreadyVisited = false;
@@ -171,7 +164,6 @@ public class DeliberativeTemplate implements DeliberativeBehavior {
 				++numVisited;
 				toVisit.addAll(children);
 			}
-
 		}
 		System.out.println("OPTIMAL PLAN FOUND WITH BFS " + numVisited + " ITERATIONS");
 		return optimalPlan;

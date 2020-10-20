@@ -17,7 +17,6 @@ public class State {
     private List<Task> unhandled;
     private double init_cost;
     private List<Action> actions;
-    private TopologyStats topologyStats;
 
     public State(Topology.City c, Vehicle v, List<Task> carried_ , List<Task> unhandled_, List<Action> ac, double initial_cost) {
         this.agentCity = c;
@@ -44,18 +43,9 @@ public class State {
         return actions;
     }
 
-
     public boolean isFinal() {
         return unhandled.isEmpty() && carried.isEmpty();
     }
-
-//    public State(State s) {
-//        this.agentCity = s.agentCity;
-//        this.unhandled = s.unhandled;
-//        this.carried = s.carried;
-//        this.actions = s.actions;
-//        this.init_cost = s.init_cost;
-//    }
 
     public ArrayList<State> getReachableStates() {
         ArrayList<State> children = new ArrayList<>();
@@ -74,7 +64,6 @@ public class State {
                 children.add(move(n));
             }
         }
-
         //PickUp as much tasks as he can and move to neighbours
         //State pickUpState = pickUp();
         if (pickUpState != null) {
@@ -82,10 +71,8 @@ public class State {
                 children.add(pickUpState.move(city));
             }
         }
-
         return children;
     }
-
     public State deliver() {
         List<Task> newCarried = new ArrayList<Task>(this.carried);
         List<Action> newActions = new ArrayList<Action>(this.actions);
@@ -98,15 +85,12 @@ public class State {
             }
             return new State(this.agentCity, this.vehicle, newCarried, this.unhandled, newActions, this.init_cost);
         }
-
     }
-
     public State move(Topology.City c) {
         List<Action> newActions = new ArrayList<Action>(this.actions);
         newActions.add(new Action.Move(c));
         return new State(c, this.vehicle, this.carried, this.unhandled, newActions, this.init_cost+this.agentCity.distanceTo(c) );
     }
-
     public State pickUp() {
         List<Task> newUnhandled = new ArrayList<Task>(this.unhandled);
         List<Task> newCarried = new ArrayList<Task>(this.carried);
@@ -126,7 +110,6 @@ public class State {
             return new State(this.agentCity, this.vehicle, newCarried, newUnhandled, newActions, this.init_cost);
         }
     }
-
     public int weightCarried() {
         int weight = 0;
         if (!carried.isEmpty()) {
@@ -136,7 +119,6 @@ public class State {
         }
         return weight;
     }
-
     public List<Task> canPickUp() {
         List<Task> canPickUp = new ArrayList<>();
         for (Task task : this.unhandled) {
@@ -146,7 +128,6 @@ public class State {
         }
         return canPickUp;
     }
-
     public List<Task> canDeliver() {
         List<Task> canDeliver = new ArrayList<>();
         for (Task task : this.carried) {
@@ -156,31 +137,26 @@ public class State {
         }
         return canDeliver;
     }
-
     public Topology.City getAgentCity() {
         return agentCity;
     }
-
     public double getEstimatedCostNaive() {
         double estCost = this.unhandled.size()*40; // minimum cost
         return estCost;
     }
     public double getEstimatedCost_twoStepHorizon() {
-        double estCost = this.unhandled.size()*40;
-        List<State> state_list = new ArrayList<State>();
-        state_list.add(this);
-        for(State st: state_list) {
-            List<State> ss = new ArrayList<State>(st.getReachableStates());
-
-            for(State s: ss) {
+        List<State> statelist = new ArrayList<State>();
+        statelist.add(this);
+        for(State crrstate: statelist) {
+            List<State> nextstate = new ArrayList<State>(crrstate.getReachableStates());
+            for(State s: nextstate) {
                 if(s.isFinal()) {
-                    return new Plan(vehicle.getCurrentCity(), this.actions).totalDistance() * this.vehicle.costPerKm();
+                    return new Plan(vehicle.getCurrentCity(), this.actions).totalDistance();
                 }
             }
         }
         return this.unhandled.size()*40;
     }
-
     public double getEstimatedCost_basedOnMaxDistance() {
         HashMap<Topology.City, Double> minDistMap = TopologyStats.getInstance().getMinDistMap();
         double estCost = 0.0;
@@ -209,10 +185,9 @@ public class State {
     public double getEstimatedCost() {
 //        return getEstimatedCostNaive(); // 6941 iterations
 //        return getEstimatedCost_twoStepHorizon(); // 12867 iterations
-//        return getEstimatedCost_basedOnMaxDistance(); // 1653 iterations
-        return getEstimatedCost_withMinAverage(); // 3095 iterations
+        return getEstimatedCost_basedOnMaxDistance(); // 1653 iterations
+//        return getEstimatedCost_withMinAverage(); // 3095 iterations
     }
-
     public double getTotalCost() {
         return init_cost+ this.getEstimatedCost();
     }
