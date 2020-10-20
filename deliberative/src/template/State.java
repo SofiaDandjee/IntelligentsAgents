@@ -4,6 +4,7 @@ import logist.plan.Action;
 import logist.plan.Plan;
 import logist.simulation.Vehicle;
 import logist.task.Task;
+import logist.task.TaskSet;
 import logist.topology.Topology;
 
 import java.util.*;
@@ -136,8 +137,6 @@ public class State {
         return weight;
     }
 
-
-
     public List<Task> canPickUp() {
         List<Task> canPickUp = new ArrayList<>();
         for (Task task : this.unhandled) {
@@ -162,7 +161,7 @@ public class State {
         return agentCity;
     }
 
-    public double getEstimatedCostEasy() {
+    public double getEstimatedCostNaive() {
         double estCost = this.unhandled.size()*40; // minimum cost
         return estCost;
     }
@@ -179,10 +178,22 @@ public class State {
                 }
             }
         }
-        return 1000.0;
+        return this.unhandled.size()*40;
     }
-    public double getEstimatedCost() {
-//        HashMap<Topology.City, Double> maxDistMap = TopologyStats.getInstance().getMaxDistMap();
+
+    public double getEstimatedCost_basedOnMaxDistance() {
+        HashMap<Topology.City, Double> minDistMap = TopologyStats.getInstance().getMinDistMap();
+        double estCost = 0.0;
+        for (Task task : this.unhandled) {
+            double dist = task.pickupCity.distanceTo(task.deliveryCity);
+            estCost = Math.max(dist, estCost);
+        }
+        for (Task taskcarrying: this.carried){
+            estCost += minDistMap.get(taskcarrying.deliveryCity);
+        }
+        return estCost;
+    }
+    public double getEstimatedCost_withMinAverage() {
         HashMap<Topology.City, Double> minDistMap = TopologyStats.getInstance().getMinDistMap();
         double estCost = 0;
 
@@ -195,6 +206,13 @@ public class State {
         }
         return estCost;
     }
+    public double getEstimatedCost() {
+//        return getEstimatedCostNaive(); // 6941 iterations
+//        return getEstimatedCost_twoStepHorizon(); // 12867 iterations
+//        return getEstimatedCost_basedOnMaxDistance(); // 1653 iterations
+        return getEstimatedCost_withMinAverage(); // 3095 iterations
+    }
+
     public double getTotalCost() {
         return init_cost+ this.getEstimatedCost();
     }
