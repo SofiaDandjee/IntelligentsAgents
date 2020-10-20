@@ -9,7 +9,7 @@ public class TopologyStats {
     private Topology topology;
     private static HashMap<City, Double> minDistMap = new HashMap<City, Double>();
     private static HashMap<City, Double> maxDistMap = new HashMap<City, Double>();
-
+    private static double topologyMinDist = Double.POSITIVE_INFINITY;
     public TopologyStats(Topology topology) {
         this.topology = topology;
         this.calcStats();
@@ -33,6 +33,9 @@ public class TopologyStats {
             minval = Double.POSITIVE_INFINITY;
             maxval = Double.NEGATIVE_INFINITY;
             for (City subcity: city.neighbors()){
+                if (topologyMinDist> city.distanceTo(subcity)) {
+                    topologyMinDist = city.distanceTo(subcity);
+                }
                 if (minval> city.distanceTo(subcity)){
                     minval = city.distanceTo(subcity);
                 }
@@ -43,6 +46,10 @@ public class TopologyStats {
             this.minDistMap.put(city, minval);
             this.maxDistMap.put(city, maxval);
         }
+    }
+
+    public static double getTopologyMinDist() {
+        return topologyMinDist;
     }
 
     public HashMap<City, Double> getMinDistMap() {

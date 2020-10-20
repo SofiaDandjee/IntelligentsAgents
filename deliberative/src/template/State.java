@@ -141,10 +141,12 @@ public class State {
         return agentCity;
     }
     public double getEstimatedCostNaive() {
-        double estCost = this.unhandled.size()*40; // minimum cost
+        double minDist = TopologyStats.getInstance().getTopologyMinDist();
+        double estCost = this.unhandled.size()*minDist; // minimum cost
         return estCost;
     }
     public double getEstimatedCost_twoStepHorizon() {
+        double minDist = TopologyStats.getInstance().getTopologyMinDist();
         List<State> statelist = new ArrayList<State>();
         statelist.add(this);
         for(State crrstate: statelist) {
@@ -155,7 +157,7 @@ public class State {
                 }
             }
         }
-        return this.unhandled.size()*40;
+        return this.unhandled.size()*minDist;
     }
     public double getEstimatedCost_basedOnMaxDistance() {
         HashMap<Topology.City, Double> minDistMap = TopologyStats.getInstance().getMinDistMap();
