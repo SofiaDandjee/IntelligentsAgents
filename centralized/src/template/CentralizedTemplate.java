@@ -34,7 +34,8 @@ public class CentralizedTemplate implements CentralizedBehavior {
     private Agent agent;
     private long timeout_setup;
     private long timeout_plan;
-    
+
+
     @Override
     public void setup(Topology topology, TaskDistribution distribution,
             Agent agent) {
@@ -56,21 +57,29 @@ public class CentralizedTemplate implements CentralizedBehavior {
         this.topology = topology;
         this.distribution = distribution;
         this.agent = agent;
+
     }
 
     @Override
     public List<Plan> plan(List<Vehicle> vehicles, TaskSet tasks) {
         long time_start = System.currentTimeMillis();
 
+        Planner planner;
+        planner = new Planner(agent.vehicles(), new ArrayList<>(tasks));
+
+        State solution = planner.SLS();
+        solution.print();
+        List<Plan> plans = stateToPlan(solution, vehicles);
+        System.out.println(plans);
 
 //		System.out.println("Agent " + agent.id() + " has tasks " + tasks);
-        Plan planVehicle1 = naivePlan(vehicles.get(0), tasks);
+        /**Plan planVehicle1 = naivePlan(vehicles.get(0), tasks);
 
         List<Plan> plans = new ArrayList<Plan>();
         plans.add(planVehicle1);
         while (plans.size() < vehicles.size()) {
             plans.add(Plan.EMPTY);
-        }
+        }*/
         
         long time_end = System.currentTimeMillis();
         long duration = time_end - time_start;
@@ -106,8 +115,53 @@ public class CentralizedTemplate implements CentralizedBehavior {
 
 
 
-    public List<Plan> solutionToPlan() {
-        return new ArrayList<>();
+    public List<Plan> stateToPlan(State s, List<Vehicle> vehicles) {
+
+        List <Plan> plans = new ArrayList<>();
+
+        for (Vehicle v : vehicles) {
+            // create the plan for each vehicle
+            Plan plan = new Plan(v.homeCity());
+            // first go to pickup city of first task
+            Task current = s.nextTask(v);
+            if (current != null) {
+                List<City> path = v.homeCity().pathTo(current.pickupCity);
+                for (City c : path) {
+                    plan.appendMove(c);
+                }
+
+                plan.appendPickup(current);
+
+                path = current.pickupCity.pathTo(current.deliveryCity);
+                for (City c : path) {
+                    plan.appendMove(c);
+                }
+                plan.appendDelivery(current);
+
+                // then all following tasks
+                Task next = s.nextTask(current);
+                while (next != null) {
+                    path = current.deliveryCity.pathTo(next.pickupCity);
+                    for (City c : path) {
+                        plan.appendMove(c);
+                    }
+                    plan.appendPickup(next);
+
+                    path = next.pickupCity.pathTo(next.deliveryCity);
+                    for (City c : path) {
+                        plan.appendMove(c);
+                    }
+                    plan.appendDelivery(next);
+                    current = next;
+                    next = s.nextTask(next);
+                }
+            }
+
+            plans.add(plan);
+
+        }
+
+        return plans;
     }
 
 
