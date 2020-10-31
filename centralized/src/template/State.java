@@ -11,7 +11,7 @@ public class State {
 
     HashMap<Vehicle, Task> nextTaskVehicle;
     HashMap<Task, Task> nextTaskTask;
-    HashMap<Task, Integer> time;
+//    HashMap<Task, Integer> time;
     HashMap<Task, Vehicle> vehicle;
     //List<Vehicle> vehicles;
     //List<Task> tasks;
@@ -19,14 +19,14 @@ public class State {
     State (HashMap<Vehicle, Task> ntv, HashMap<Task, Task> ntt, HashMap<Task, Integer> t, HashMap<Task, Vehicle> v) {
         nextTaskTask = ntt;
         nextTaskVehicle = ntv;
-        time = t;
+//        time = t;
         vehicle = v;
     }
 
     State(State s) {
         this.nextTaskTask = new HashMap<>(s.nextTaskTask);
         this.nextTaskVehicle = new HashMap<>(s.nextTaskVehicle);
-        this.time = new HashMap<>(s.time);
+//        this.time = new HashMap<>(s.time);
         this.vehicle = new HashMap<>(s.vehicle);
     }
 
@@ -38,17 +38,17 @@ public class State {
         return nextTaskTask.get(t);
     }
 
-    Integer time (Task t) {
-        return time.get(t);
-    }
+//    Integer time (Task t) {
+//        return time.get(t);
+//    }
 
     Vehicle vehicle (Task t) {
         return vehicle.get(t);
     }
 
-    void setTime(Task t, int time1) {
-        time.put(t, time1);
-    }
+//    void setTime(Task t, int time1) {
+//        time.put(t, time1);
+//    }
 
     void setNextTaskforVehicle(Vehicle v, Task t) {
         nextTaskVehicle.put(v, t);

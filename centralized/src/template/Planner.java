@@ -145,20 +145,20 @@ public class Planner {
         return neighbours;
     }
 
-    private void updateTime(State s, Vehicle v) {
-        Task ti = s.nextTask(v);
-        if (ti != null) {
-            s.setTime(ti, 1);
-            Task tj;
-            do {
-                tj = s.nextTask(ti);
-                if (tj != null) {
-                    s.setTime(tj, s.time(ti) + 1);
-                    ti = tj;
-                }
-            } while (tj != null);
-        }
-    }
+//    private void updateTime(State s, Vehicle v) {
+//        Task ti = s.nextTask(v);
+//        if (ti != null) {
+//            s.setTime(ti, 1);
+//            Task tj;
+//            do {
+//                tj = s.nextTask(ti);
+//                if (tj != null) {
+//                    s.setTime(tj, s.time(ti) + 1);
+//                    ti = tj;
+//                }
+//            } while (tj != null);
+//        }
+//    }
 
     private State changingVehicle(State s, Vehicle v1, Vehicle v2) {
 
@@ -168,8 +168,8 @@ public class Planner {
         s1.setNextTaskforVehicle(v1, s1.nextTask(t));
         s1.setNextTaskforTask(t, s1.nextTask(v2));
         s1.setNextTaskforVehicle(v2, t);
-        updateTime(s1, v1);
-        updateTime(s1, v2);
+//        updateTime(s1, v1);
+//        updateTime(s1, v2);
         s1.setVehicle(t, v2);
 
         return s1;
@@ -230,7 +230,7 @@ public class Planner {
             s1.setNextTaskforTask(t2, task1Post);
             s1.setNextTaskforTask(t1, task2Post);
         }
-        updateTime(s1, v);
+//        updateTime(s1, v);
 
         return s1;
     }
@@ -256,7 +256,7 @@ public class Planner {
 
     public State SLS() {
         State s = selectInitialSolutionNaive();
-        int maxIter = 10000;
+        int maxIter = 500;
         int iter = 0;
         double bestCost = s.getCost();
         State bestState = s;
