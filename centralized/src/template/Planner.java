@@ -28,9 +28,9 @@ public class Planner {
 
         for (Task t : tasks) {
             if (t.weight > vehicles.get(biggest).capacity()) {
-                // if there is task whose weight is bigger than biggest vehicle capacity
-                // no solution
-                return null;
+                // if there is task whose weight is bigger than biggest vehicle capacity: no solution
+                System.out.println("No solution can be found. Task with weight higher than capacity");
+                System.exit(1);
             }
             taskToVehicle.put(t, vehicles.get(biggest));
         }
@@ -235,37 +235,44 @@ public class Planner {
         return s1;
     }
 
-    private State localChoice(List<State> N) {
+    private State localChoice(List<State> N, State sOld) {
         double minCost = Double.POSITIVE_INFINITY;
         double cost;
-        State choice = null;
+//        State choice = null;
+        List<State> bestChoices = new ArrayList<>();
+        double probThreshold = 0.4;
         for (State neighbour : N) {
-            //System.out.println(neighbour.nextTaskTask.keySet());
             cost = neighbour.getCost();
             if (cost < minCost) {
                 minCost = cost;
-                choice = neighbour;
-                System.out.println("Found better!");
+                bestChoices.add(neighbour);
             }
         }
-        return choice;
+        if(Math.random() > probThreshold){
+            return sOld;
+        }
+        return bestChoices.get(new Random().nextInt(bestChoices.size()));
     }
 
     public State SLS() {
         State s = selectInitialSolutionNaive();
-        int maxIter = 50000;
+        int maxIter = 10000;
         int iter = 0;
-
+        double bestCost = s.getCost();
+        State bestState = s;
         do {
             State sOld = s;
             List <State> neighbours = chooseNeighbours(sOld);
-
-            s = localChoice(neighbours);
+            s = localChoice(neighbours, sOld);
+            if (s.getCost() < bestCost) {
+                bestCost = s.getCost();
+                bestState = s;
+                System.out.println("Better solution found!");
+            }
             ++iter;
 
         } while (iter < maxIter);
-        return s;
+        return bestState;
     }
-
 
 }
