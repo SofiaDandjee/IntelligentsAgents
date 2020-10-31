@@ -1,25 +1,22 @@
 package template;
 
 //the list of imports
-import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Random;
-import logist.LogistSettings;
 
-import logist.Measures;
-import logist.behavior.AuctionBehavior;
-import logist.behavior.CentralizedBehavior;
+import logist.LogistSettings;
 import logist.agent.Agent;
+import logist.behavior.CentralizedBehavior;
 import logist.config.Parsers;
-import logist.simulation.Vehicle;
 import logist.plan.Plan;
+import logist.simulation.Vehicle;
 import logist.task.Task;
 import logist.task.TaskDistribution;
 import logist.task.TaskSet;
 import logist.topology.Topology;
 import logist.topology.Topology.City;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A very simple auction agent that assigns all tasks to its first vehicle and
@@ -27,7 +24,7 @@ import logist.topology.Topology.City;
  *
  */
 @SuppressWarnings("unused")
-public class CentralizedTemplate implements CentralizedBehavior {
+public class CentralizedMultiTask implements CentralizedBehavior {
 
     private Topology topology;
     private TaskDistribution distribution;
@@ -64,14 +61,22 @@ public class CentralizedTemplate implements CentralizedBehavior {
     public List<Plan> plan(List<Vehicle> vehicles, TaskSet tasks) {
         long time_start = System.currentTimeMillis();
 
+        Planner planner;
+        planner = new Planner(agent.vehicles(), new ArrayList<>(tasks));
+
+        State solution = planner.SLS();
+        solution.print();
+        List<Plan> plans = stateToPlan(solution, vehicles);
+        System.out.println(plans);
+
 //		System.out.println("Agent " + agent.id() + " has tasks " + tasks);
-        Plan planVehicle1 = naivePlan(vehicles.get(0), tasks);
+        /**Plan planVehicle1 = naivePlan(vehicles.get(0), tasks);
 
         List<Plan> plans = new ArrayList<Plan>();
         plans.add(planVehicle1);
         while (plans.size() < vehicles.size()) {
             plans.add(Plan.EMPTY);
-        }
+        }*/
         
         long time_end = System.currentTimeMillis();
         long duration = time_end - time_start;
