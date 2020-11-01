@@ -1,5 +1,6 @@
 package template;
 
+import logist.plan.Plan;
 import logist.simulation.Vehicle;
 import logist.task.Task;
 
@@ -96,7 +97,8 @@ public class Planner {
 
                 Task t = s.nextTask(v).getTask();
 
-                if (t.weight <= vj.capacity()) {
+                if (t.weight <= s.remaingVehicleCapacity(vj)) {
+//                if (t.weight <= vj.capacity()) { // task change always happen with immediate delivery, so no effect to capacity (?)
 
                     State s1 = changingVehicle(s, v, vj);
                     neighbours.add(s1);
@@ -189,7 +191,7 @@ public class Planner {
         TaskAnnotated task2Post = s1.nextTask(t2); // task delivered after t2
 
         Boolean exchangeFlag = false;
-        // Logic: its okay to postpone delivery and early pickup, check otherwise for possible delivery before pickup
+        // Logic: its okay to postpone delivery and early pickup (given capacity available), check otherwise for possible delivery before pickup
         if (t1.getActivity() == Planner.Activity.Pick){
             if (t2.getActivity() == Planner.Activity.Pick){
                 if(id2<(s1.deliveryIdxDiff(t1)+id1)) exchangeFlag=true;
@@ -199,7 +201,12 @@ public class Planner {
             }
         }
         else{
-            if (t2.getActivity() == Planner.Activity.Pick) exchangeFlag=true;
+            if (t2.getActivity() == Planner.Activity.Pick) {
+                int remainCap = s1.remaingVehicleCapacity(t1,v)-t1.getTask().weight-t2.getTask().weight;
+                if(remainCap>=0) exchangeFlag=true;
+                else
+                    exchangeFlag=false;
+            }
             else{
                 if (s1.pickupIdx(t2,v) < id1) exchangeFlag=true;
             }
@@ -252,17 +259,21 @@ public class Planner {
 
     public State SLS() {
         State s = selectInitialSolutionNaive();
-        int maxIter = 2000;
+        int maxIter = 5;
         int iter = 0;
         double bestCost = s.getCost();
         State bestState = s;
+//        List<Plan> tempPlan;
+//        List<Plan> tempPlan2;
         do {
             State sOld = s;
+//            tempPlan2 = CentralizedMultiTask.stateToPlan(sOld, this.vehicles);
             List <State> neighbours = chooseNeighbours(sOld);
             s = localChoice(neighbours, sOld);
             if (s.getCost() < bestCost) {
                 bestCost = s.getCost();
                 bestState = s;
+//                tempPlan = CentralizedMultiTask.stateToPlan(bestState, this.vehicles);
                 System.out.println("Better solution found!");
             }
             ++iter;

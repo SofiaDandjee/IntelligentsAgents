@@ -62,6 +62,34 @@ public class State {
         }
         return count;
     }
+    Integer remaingVehicleCapacity(TaskAnnotated ta, Vehicle v){
+        TaskAnnotated tanow = this.nextTask(v);
+        int weight = 0;
+        if(tanow !=null) weight = tanow.getTask().weight;
+        else {
+            weight = 0;
+        }
+        while (tanow != ta){
+            tanow = this.nextTask(tanow);
+            if (tanow.getActivity() == Planner.Activity.Pick) weight += tanow.getTask().weight;
+            else weight -= tanow.getTask().weight;
+        }
+        return v.capacity()-weight;
+    }
+    Integer remaingVehicleCapacity(Vehicle v){
+        TaskAnnotated tanow = this.nextTask(v);
+        int weight = 0;
+        if(tanow !=null) weight = tanow.getTask().weight;
+        else {
+            weight = 0;
+        }
+        while (tanow != null){
+            tanow = this.nextTask(tanow);
+            if (tanow.getActivity() == Planner.Activity.Pick) weight += tanow.getTask().weight;
+            else weight -= tanow.getTask().weight;
+        }
+        return v.capacity()-weight;
+    }
     TaskAnnotated nextTask(TaskAnnotated t) {
         return nextTaskTask.get(t);
     }
@@ -122,10 +150,10 @@ public class State {
 //        for (TaskAnnotated ta: nextTaskTask.keySet()) {
 //            Task t = ta.getTask();
 //            System.out.print("Next task of task " + t.id + t.pickupCity.name + t.deliveryCity.name + " : ");
-//            if (nextTask(t) == null) {
+//            if (nextTask(ta) == null) {
 //                System.out.println("null");
 //            } else {
-//                System.out.println(nextTask(t).id);
+//                System.out.println(nextTask(ta).getTask().id);
 //            }
 //        }
 //
@@ -134,7 +162,7 @@ public class State {
 //            if (nextTask(v) == null) {
 //                System.out.println("null");
 //            } else {
-//                System.out.println(nextTask(v).id);
+//                System.out.println(nextTask(v).getTask().id);
 //            }
 //        }
 

@@ -78,7 +78,7 @@ public class CentralizedMultiTask implements CentralizedBehavior {
 
 
 
-    public List<Plan> stateToPlan(State s, List<Vehicle> vehicles) {
+    public static List<Plan> stateToPlan(State s, List<Vehicle> vehicles) {
 
         List <Plan> plans = new ArrayList<>();
 
