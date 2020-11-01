@@ -107,55 +107,6 @@ public class CentralizedTemplate implements CentralizedBehavior {
 
 
 
-    public List<Plan> stateToPlan(State s, List<Vehicle> vehicles) {
-
-        List <Plan> plans = new ArrayList<>();
-
-        for (Vehicle v : vehicles) {
-            // create the plan for each vehicle
-            Plan plan = new Plan(v.homeCity());
-            // first go to pickup city of first task
-            Task current = s.nextTask(v);
-            if (current != null) {
-                List<City> path = v.homeCity().pathTo(current.pickupCity);
-                for (City c : path) {
-                    plan.appendMove(c);
-                }
-
-                plan.appendPickup(current);
-
-                path = current.pickupCity.pathTo(current.deliveryCity);
-                for (City c : path) {
-                    plan.appendMove(c);
-                }
-                plan.appendDelivery(current);
-
-                // then all following tasks
-                Task next = s.nextTask(current);
-                while (next != null) {
-                    path = current.deliveryCity.pathTo(next.pickupCity);
-                    for (City c : path) {
-                        plan.appendMove(c);
-                    }
-                    plan.appendPickup(next);
-
-                    path = next.pickupCity.pathTo(next.deliveryCity);
-                    for (City c : path) {
-                        plan.appendMove(c);
-                    }
-                    plan.appendDelivery(next);
-                    current = next;
-                    next = s.nextTask(next);
-                }
-            }
-
-            plans.add(plan);
-
-        }
-
-        return plans;
-    }
-
 
 
 

@@ -32,7 +32,6 @@ public class CentralizedMultiTask implements CentralizedBehavior {
     private long timeout_setup;
     private long timeout_plan;
 
-
     @Override
     public void setup(Topology topology, TaskDistribution distribution,
             Agent agent) {
@@ -69,45 +68,12 @@ public class CentralizedMultiTask implements CentralizedBehavior {
         List<Plan> plans = stateToPlan(solution, vehicles);
         System.out.println(plans);
 
-//		System.out.println("Agent " + agent.id() + " has tasks " + tasks);
-        /**Plan planVehicle1 = naivePlan(vehicles.get(0), tasks);
-
-        List<Plan> plans = new ArrayList<Plan>();
-        plans.add(planVehicle1);
-        while (plans.size() < vehicles.size()) {
-            plans.add(Plan.EMPTY);
-        }*/
         
         long time_end = System.currentTimeMillis();
         long duration = time_end - time_start;
         System.out.println("The plan was generated in " + duration + " milliseconds.");
         
         return plans;
-    }
-
-    private Plan naivePlan(Vehicle vehicle, TaskSet tasks) {
-        City current = vehicle.getCurrentCity();
-        Plan plan = new Plan(current);
-
-        for (Task task : tasks) {
-            // move: current city => pickup location
-            for (City city : current.pathTo(task.pickupCity)) {
-                plan.appendMove(city);
-            }
-
-            plan.appendPickup(task);
-
-            // move: pickup location => delivery location
-            for (City city : task.path()) {
-                plan.appendMove(city);
-            }
-
-            plan.appendDelivery(task);
-
-            // set current city
-            current = task.deliveryCity;
-        }
-        return plan;
     }
 
 
@@ -120,44 +86,53 @@ public class CentralizedMultiTask implements CentralizedBehavior {
             // create the plan for each vehicle
             Plan plan = new Plan(v.homeCity());
             // first go to pickup city of first task
-            Task current = s.nextTask(v);
+            TaskAnnotated current = s.nextTask(v);
             if (current != null) {
-                List<City> path = v.homeCity().pathTo(current.pickupCity);
+                List<City> path = v.homeCity().pathTo(current.getTask().pickupCity);
                 for (City c : path) {
                     plan.appendMove(c);
                 }
-
-                plan.appendPickup(current);
-
-                path = current.pickupCity.pathTo(current.deliveryCity);
-                for (City c : path) {
-                    plan.appendMove(c);
-                }
-                plan.appendDelivery(current);
-
-                // then all following tasks
-                Task next = s.nextTask(current);
-                while (next != null) {
-                    path = current.deliveryCity.pathTo(next.pickupCity);
-                    for (City c : path) {
-                        plan.appendMove(c);
+                plan.appendPickup(current.getTask());
+                TaskAnnotated nextA = s.nextTask(current);
+                while (nextA != null) {
+                    if (current.getActivity() == Planner.Activity.Pick){
+                        if (nextA.getActivity() == Planner.Activity.Pick){
+                            path = current.getTask().pickupCity.pathTo(nextA.getTask().pickupCity);
+                            for (City c : path) {
+                                plan.appendMove(c);
+                            }
+                            plan.appendPickup(nextA.getTask());
+                        }
+                        else{
+                            path = current.getTask().pickupCity.pathTo(nextA.getTask().deliveryCity);
+                            for (City c : path) {
+                                plan.appendMove(c);
+                            }
+                            plan.appendDelivery(nextA.getTask());
+                        }
                     }
-                    plan.appendPickup(next);
-
-                    path = next.pickupCity.pathTo(next.deliveryCity);
-                    for (City c : path) {
-                        plan.appendMove(c);
+                    else{
+                        if (nextA.getActivity() == Planner.Activity.Pick){
+                            path = current.getTask().deliveryCity.pathTo(nextA.getTask().pickupCity);
+                            for (City c : path) {
+                                plan.appendMove(c);
+                            }
+                            plan.appendPickup(nextA.getTask());
+                        }
+                        else{
+                            path = current.getTask().deliveryCity.pathTo(nextA.getTask().deliveryCity);
+                            for (City c : path) {
+                                plan.appendMove(c);
+                            }
+                            plan.appendDelivery(nextA.getTask());
+                        }
                     }
-                    plan.appendDelivery(next);
-                    current = next;
-                    next = s.nextTask(next);
+                    current = nextA;
+                    nextA = s.nextTask(nextA);
                 }
             }
-
             plans.add(plan);
-
         }
-
         return plans;
     }
 

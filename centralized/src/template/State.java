@@ -9,14 +9,11 @@ import java.util.List;
 
 public class State {
 
-    HashMap<Vehicle, Task> nextTaskVehicle;
-    HashMap<Task, Task> nextTaskTask;
-//    HashMap<Task, Integer> time;
+    HashMap<Vehicle, TaskAnnotated> nextTaskVehicle;
+    HashMap<TaskAnnotated, TaskAnnotated> nextTaskTask;
     HashMap<Task, Vehicle> vehicle;
-    //List<Vehicle> vehicles;
-    //List<Task> tasks;
 
-    State (HashMap<Vehicle, Task> ntv, HashMap<Task, Task> ntt, HashMap<Task, Integer> t, HashMap<Task, Vehicle> v) {
+    State (HashMap<Vehicle, TaskAnnotated> ntv, HashMap<TaskAnnotated, TaskAnnotated> ntt, HashMap<Task, Vehicle> v) { //, HashMap<Task, Integer> t
         nextTaskTask = ntt;
         nextTaskVehicle = ntv;
 //        time = t;
@@ -26,56 +23,95 @@ public class State {
     State(State s) {
         this.nextTaskTask = new HashMap<>(s.nextTaskTask);
         this.nextTaskVehicle = new HashMap<>(s.nextTaskVehicle);
-//        this.time = new HashMap<>(s.time);
         this.vehicle = new HashMap<>(s.vehicle);
     }
 
-    Task nextTask(Vehicle v) {
+    TaskAnnotated nextTask(Vehicle v) {
         return nextTaskVehicle.get(v);
     }
-
-    Task nextTask(Task t) {
+    TaskAnnotated nextTaskAnnot(Vehicle v) {
+        return nextTaskVehicle.get(v);
+    }
+    TaskAnnotated removeTaskDelivery(TaskAnnotated ta){
+        Task t_org = ta.getTask(); // init ta must be a pickup, do additional check if needed
+        TaskAnnotated ta2 = this.nextTask(ta); // init ta2 is also a pickup, according to the usage of the func.
+        while (ta2.getTask() != t_org) {
+            ta = ta2;
+            ta2 = this.nextTask(ta2);
+        }
+        this.nextTaskTask.put(ta, this.nextTask(ta2));
+        return ta2;
+    }
+    Integer deliveryIdxDiff(TaskAnnotated ta) {
+        int count=1;
+        Task t_org = ta.getTask(); // init ta must be a pickup, do additional check if needed
+        ta = this.nextTask(ta);
+        while (ta.getTask() != t_org) {
+            ta = this.nextTask(ta);
+            ++ count;
+        }
+        return count;
+    }
+    Integer pickupIdx(TaskAnnotated ta, Vehicle v) {
+        int count=0;
+        Task t_org = ta.getTask(); // init ta must be a delivery, do additional check if needed
+        ta = this.nextTask(v);
+        while (ta.getTask() != t_org) {
+            ta = this.nextTask(ta);
+            ++ count;
+        }
+        return count;
+    }
+    TaskAnnotated nextTask(TaskAnnotated t) {
         return nextTaskTask.get(t);
     }
 
-//    Integer time (Task t) {
-//        return time.get(t);
-//    }
+    TaskAnnotated nextTaskAnnot(TaskAnnotated t) {
+        return nextTaskTask.get(t);
+    }
 
     Vehicle vehicle (Task t) {
         return vehicle.get(t);
     }
 
-//    void setTime(Task t, int time1) {
-//        time.put(t, time1);
-//    }
-
-    void setNextTaskforVehicle(Vehicle v, Task t) {
-        nextTaskVehicle.put(v, t);
+    void setNextTaskforVehicle(Vehicle v, TaskAnnotated ta) {
+        nextTaskVehicle.put(v, ta);
     }
 
-    void setNextTaskforTask(Task t1, Task t2) {
-        nextTaskTask.put(t1, t2);
+    void setNextTaskforTask(TaskAnnotated ta1, TaskAnnotated ta2) {
+        nextTaskTask.put(ta1,ta2);
     }
-
     void setVehicle(Task t, Vehicle v) {
         vehicle.put(t,v);
     }
 
     double getCost() {
         double cost = 0;
-        //print();
-        for (Task task : nextTaskTask.keySet()) {
-            //System.out.println(nextTaskTask.keySet());
-            Task next = nextTask(task);
+
+        for (Vehicle v : nextTaskVehicle.keySet()) {
+            TaskAnnotated next = nextTask(v);
             if (next != null) {
-                cost += (task.deliveryCity.distanceTo(next.pickupCity) + next.pickupCity.distanceTo(next.deliveryCity))*vehicle(task).costPerKm();
+                cost += (v.homeCity().distanceTo(next.getTask().pickupCity))*v.costPerKm();
             }
         }
-        for (Vehicle v : nextTaskVehicle.keySet()) {
-            Task next = nextTask(v);
-            if (next != null) {
-                cost += (v.homeCity().distanceTo(next.pickupCity) + next.pickupCity.distanceTo(next.deliveryCity))*v.costPerKm();
+        for (TaskAnnotated taskA : nextTaskTask.keySet()) {
+            Task task = taskA.getTask();
+            TaskAnnotated nextA = nextTaskAnnot(taskA);
+            if (nextA != null) {
+                Task next = nextA.getTask();
+                if (taskA.getActivity() == Planner.Activity.Pick){
+                    if (nextA.getActivity() == Planner.Activity.Pick)
+                        cost += (task.pickupCity.distanceTo(next.pickupCity))*vehicle(task).costPerKm();
+                    else
+                        cost += (task.pickupCity.distanceTo(next.deliveryCity))*vehicle(task).costPerKm();
+
+                }
+                else{
+                    if (nextA.getActivity() == Planner.Activity.Pick)
+                        cost += (task.deliveryCity.distanceTo(next.pickupCity))*vehicle(task).costPerKm();
+                    else
+                        cost += (task.deliveryCity.distanceTo(next.deliveryCity))*vehicle(task).costPerKm();
+                }
             }
         }
         return cost;
@@ -83,23 +119,24 @@ public class State {
 
     void print() {
 
-        for (Task t: nextTaskTask.keySet()) {
-            System.out.print("Next Task of task " + t.id + t.pickupCity.name + t.deliveryCity.name + " : ");
-            if (nextTask(t) == null) {
-                System.out.println("null");
-            } else {
-                System.out.println(nextTask(t).id);
-            }
-        }
-
-        for (Vehicle v: nextTaskVehicle.keySet()) {
-            System.out.print("Next Task of vehicle " + v.id() + "("+v.homeCity().name+ ") : ");
-            if (nextTask(v) == null) {
-                System.out.println("null");
-            } else {
-                System.out.println(nextTask(v).id);
-            }
-        }
+//        for (TaskAnnotated ta: nextTaskTask.keySet()) {
+//            Task t = ta.getTask();
+//            System.out.print("Next task of task " + t.id + t.pickupCity.name + t.deliveryCity.name + " : ");
+//            if (nextTask(t) == null) {
+//                System.out.println("null");
+//            } else {
+//                System.out.println(nextTask(t).id);
+//            }
+//        }
+//
+//        for (Vehicle v: nextTaskVehicle.keySet()) {
+//            System.out.print("Next task of vehicle " + v.id() + "("+v.homeCity().name+ ") : ");
+//            if (nextTask(v) == null) {
+//                System.out.println("null");
+//            } else {
+//                System.out.println(nextTask(v).id);
+//            }
+//        }
 
 
     }
