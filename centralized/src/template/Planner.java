@@ -259,7 +259,7 @@ public class Planner {
 
     public State SLS() {
         State s = selectInitialSolutionNaive();
-        int maxIter = 5;
+        int maxIter = 1000;
         int iter = 0;
         double bestCost = s.getCost();
         State bestState = s;
