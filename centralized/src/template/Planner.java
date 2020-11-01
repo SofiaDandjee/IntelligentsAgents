@@ -20,13 +20,13 @@ public class Planner {
         this.tasks = t;
     }
     State selectInitialSolutionNaive() {
-
+        HashMap<TaskAnnotated, TaskAnnotated> taskToTask = new HashMap<>();
+        TaskAnnotated tanew = new TaskAnnotated(tasks.get(0), Activity.Pick);
+        HashMap<Vehicle, TaskAnnotated> vehicleToTask = new HashMap<>();
+        HashMap<Task, Vehicle> taskToVehicle = new HashMap<>();
 
         // get vehicle with max capacity
         int biggest = getIdBiggestVehicle();
-
-        // vehicle is the biggest one for all tasks
-        HashMap<Task, Vehicle> taskToVehicle = new HashMap<>();
 
         for (Task t : tasks) {
             if (t.weight > vehicles.get(biggest).capacity()) {
@@ -36,12 +36,6 @@ public class Planner {
             }
             taskToVehicle.put(t, vehicles.get(biggest));
         }
-
-
-        HashMap<TaskAnnotated, TaskAnnotated> taskToTask = new HashMap<>();
-        TaskAnnotated tanew = new TaskAnnotated(tasks.get(0), Activity.Pick);
-
-        HashMap<Vehicle, TaskAnnotated> vehicleToTask = new HashMap<>();
         for (Vehicle v : vehicles) {
             if (v.id() == biggest) {
                 vehicleToTask.put(v, tanew);
@@ -49,8 +43,6 @@ public class Planner {
                 vehicleToTask.put(v, null);
             }
         }
-
-
         for (Task t : tasks) {
             TaskAnnotated tanext;
             TaskAnnotated tanextdel = new TaskAnnotated(tasks.get(t.id), Activity.Deliver);
@@ -66,13 +58,23 @@ public class Planner {
         }
         return new State(vehicleToTask, taskToTask, taskToVehicle);
     }
-
+    Boolean enoughSpace(HashMap<Task, Vehicle> taskToVehicle, Vehicle v, Integer newWeight){
+        Integer weight = newWeight;
+        for (Task t : tasks) {
+            if(taskToVehicle.get(t)==v){
+                weight += t.weight;
+            }
+        }
+        return (v.capacity()>=weight);
+    }
     State selectInitialSolution() {
         HashMap<Task, Vehicle> taskToVehicle = new HashMap<>();
         HashMap<TaskAnnotated, TaskAnnotated> taskToTask = new HashMap<>();
         HashMap<Vehicle, TaskAnnotated> vehicleToTask = new HashMap<>();
         HashMap<Vehicle, TaskAnnotated> vehicleLastTask = new HashMap<>();
         HashMap<Integer, TaskAnnotated> taskToTaskAnnot = new HashMap<>();
+        Random rand = new Random();
+
         int biggest = getIdBiggestVehicle();
 
         for (Task t : tasks) {
@@ -84,7 +86,7 @@ public class Planner {
             taskToTaskAnnot.put(t.id, new TaskAnnotated(t,Activity.Pick));
             taskToTaskAnnot.put(t.id+tasks.size(), new TaskAnnotated(t,Activity.Deliver));
             for (Vehicle v : vehicles) {
-                if (v.homeCity()==t.pickupCity){
+                if ((v.homeCity()==t.pickupCity)&(enoughSpace(taskToVehicle,v,t.weight))){
                     taskToVehicle.put(t,v);
                     TaskAnnotated ta = vehicleToTask.get(v);
                     if(ta == null) {
@@ -99,24 +101,29 @@ public class Planner {
         }
         for (Task t : tasks) {
             Vehicle v = taskToVehicle.get(t);
-            if (v == null){
-                v = vehicles.get(biggest);
-                taskToVehicle.put(t,v);
-                TaskAnnotated ta = vehicleToTask.get(v);
-                if(ta == null) {
-                    vehicleToTask.put(v,taskToTaskAnnot.get(t.id));
-                }
-                else{
-                    taskToTask.put(vehicleLastTask.get(v),taskToTaskAnnot.get(t.id));
-                }
-                taskToTask.put(taskToTaskAnnot.get(t.id),taskToTaskAnnot.get(t.id+tasks.size()));
-                vehicleLastTask.put(v,taskToTaskAnnot.get(t.id+tasks.size()));
-            }
-            else{
+            if (v != null){
                 taskToTask.put(vehicleLastTask.get(v),taskToTaskAnnot.get(t.id+tasks.size()));
                 vehicleLastTask.put(v,taskToTaskAnnot.get(t.id+tasks.size()));
             }
         }
+        for (Task t : tasks) { // seperate for loop is needed to makesure vehicles have capacity to take new tasks
+            Vehicle v = taskToVehicle.get(t);
+            if (v == null) {
+                do {
+                    v = vehicles.get(rand.nextInt(vehicles.size()));
+                } while (v.capacity() < t.weight);
+                taskToVehicle.put(t, v);
+                TaskAnnotated ta = vehicleToTask.get(v);
+                if (ta == null) {
+                    vehicleToTask.put(v, taskToTaskAnnot.get(t.id));
+                } else {
+                    taskToTask.put(vehicleLastTask.get(v), taskToTaskAnnot.get(t.id));
+                }
+                taskToTask.put(taskToTaskAnnot.get(t.id), taskToTaskAnnot.get(t.id + tasks.size()));
+                vehicleLastTask.put(v, taskToTaskAnnot.get(t.id + tasks.size()));
+            }
+        }
+
         for (Vehicle v : vehicles) {
             if(vehicleLastTask.get(v)==null) vehicleToTask.put(v,null);
             else taskToTask.put(vehicleLastTask.get(v),null);
@@ -140,27 +147,20 @@ public class Planner {
         List<State> neighbours = new ArrayList<>();
         // get random vehicle that has a task
         Random rand = new Random();
-
         Vehicle v;
         do {
             v = vehicles.get(rand.nextInt(vehicles.size()));
         } while (s.nextTask(v) == null);
         // Applying the changing vehicle operator
-
         for (Vehicle vj : vehicles) {
-
             if (v != vj) {
-
                 Task t = s.nextTask(v).getTask();
-
                 if (t.weight <= s.remaingVehicleCapacity(vj)) {
                     State s1 = changingVehicle(s, v, vj);
                     neighbours.add(s1);
                 }
             }
-
         }
-
         // Applying the changing task order
         // compute number of tasks and tasks for vehicle
         int n = 0;
@@ -179,7 +179,6 @@ public class Planner {
                 }
             }
         }
-
         return neighbours;
     }
 
@@ -188,7 +187,6 @@ public class Planner {
         State s1 = new State(s);
         TaskAnnotated ta_delivery;
         TaskAnnotated ta = s1.nextTaskAnnot(v1);
-//        Task t = ta.getTask();
         TaskAnnotated ta2 = s1.nextTaskAnnot(ta);
         if (ta2.getActivity() == Activity.Pick){
             s1.setNextTaskforVehicle(v1, ta2);
@@ -243,7 +241,8 @@ public class Planner {
         TaskAnnotated task2Post = s1.nextTask(t2); // task delivered after t2
 
         Boolean exchangeFlag = false;
-        // Logic: its okay to postpone delivery and early pickup (given capacity available), check otherwise for possible delivery before pickup
+        // Logic: its okay to postpone delivery and do an early pickup (given capacity available),
+        // otherwise check for possibility of delivery before pickup
         if (t1.getActivity() == Planner.Activity.Pick){
             if (t2.getActivity() == Planner.Activity.Pick){
                 if((id2<(s1.deliveryIdxDiff(t1)+id1))& s1.enoughVehicleCapacity((-t1.getTask().weight+t2.getTask().weight),v)) exchangeFlag=true;
@@ -294,7 +293,7 @@ public class Planner {
         double minCost = Double.POSITIVE_INFINITY;
         double cost;
         List<State> bestChoices = new ArrayList<>();
-        double probThreshold = 0.4;
+        double probThreshold = 0.5;
         for (State neighbour : N) {
             cost = neighbour.getCost();
             if (cost < minCost) {
@@ -311,7 +310,7 @@ public class Planner {
     public State SLS() {
 //        State s = selectInitialSolutionNaive();
         State s = selectInitialSolution();
-        int maxIter = 1000;
+        int maxIter = 5000;
         int iter = 0;
         double bestCost = s.getCost();
         State bestState = s;
