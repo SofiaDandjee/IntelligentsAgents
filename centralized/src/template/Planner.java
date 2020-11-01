@@ -58,14 +58,70 @@ public class Planner {
                 taskToTask.put(tanew, tanextdel);
                 taskToTask.put(tanextdel, null);
             } else {
-//                tanextdel = new TaskAnnotated(tasks.get(t.id), Activity.Deliver);
                 tanext = new TaskAnnotated(tasks.get(t.id + 1), Activity.Pick);
                 taskToTask.put(tanew, tanextdel);
                 taskToTask.put(tanextdel, tanext);
                 tanew = tanext;
             }
         }
-        return new State(vehicleToTask, taskToTask, taskToVehicle); // taskToTime
+        return new State(vehicleToTask, taskToTask, taskToVehicle);
+    }
+
+    State selectInitialSolution() {
+        HashMap<Task, Vehicle> taskToVehicle = new HashMap<>();
+        HashMap<TaskAnnotated, TaskAnnotated> taskToTask = new HashMap<>();
+        HashMap<Vehicle, TaskAnnotated> vehicleToTask = new HashMap<>();
+        HashMap<Vehicle, TaskAnnotated> vehicleLastTask = new HashMap<>();
+        HashMap<Integer, TaskAnnotated> taskToTaskAnnot = new HashMap<>();
+        int biggest = getIdBiggestVehicle();
+
+        for (Task t : tasks) {
+            if (t.weight > vehicles.get(biggest).capacity()) {
+                // if there is task whose weight is bigger than biggest vehicle capacity: no solution
+                System.out.println("No solution can be found. Task with weight higher than capacity");
+                System.exit(1);
+            }
+            taskToTaskAnnot.put(t.id, new TaskAnnotated(t,Activity.Pick));
+            taskToTaskAnnot.put(t.id+tasks.size(), new TaskAnnotated(t,Activity.Deliver));
+            for (Vehicle v : vehicles) {
+                if (v.homeCity()==t.pickupCity){
+                    taskToVehicle.put(t,v);
+                    TaskAnnotated ta = vehicleToTask.get(v);
+                    if(ta == null) {
+                        vehicleToTask.put(v,taskToTaskAnnot.get(t.id));
+                    }
+                    else{
+                        taskToTask.put(vehicleLastTask.get(v),taskToTaskAnnot.get(t.id));
+                    }
+                    vehicleLastTask.put(v,taskToTaskAnnot.get(t.id));
+                }
+            }
+        }
+        for (Task t : tasks) {
+            Vehicle v = taskToVehicle.get(t);
+            if (v == null){
+                v = vehicles.get(biggest);
+                taskToVehicle.put(t,v);
+                TaskAnnotated ta = vehicleToTask.get(v);
+                if(ta == null) {
+                    vehicleToTask.put(v,taskToTaskAnnot.get(t.id));
+                }
+                else{
+                    taskToTask.put(vehicleLastTask.get(v),taskToTaskAnnot.get(t.id));
+                }
+                taskToTask.put(taskToTaskAnnot.get(t.id),taskToTaskAnnot.get(t.id+tasks.size()));
+                vehicleLastTask.put(v,taskToTaskAnnot.get(t.id+tasks.size()));
+            }
+            else{
+                taskToTask.put(vehicleLastTask.get(v),taskToTaskAnnot.get(t.id+tasks.size()));
+                vehicleLastTask.put(v,taskToTaskAnnot.get(t.id+tasks.size()));
+            }
+        }
+        for (Vehicle v : vehicles) {
+            if(vehicleLastTask.get(v)==null) vehicleToTask.put(v,null);
+            else taskToTask.put(vehicleLastTask.get(v),null);
+        }
+        return new State(vehicleToTask, taskToTask, taskToVehicle);
     }
 
     private int getIdBiggestVehicle() {
@@ -98,8 +154,6 @@ public class Planner {
                 Task t = s.nextTask(v).getTask();
 
                 if (t.weight <= s.remaingVehicleCapacity(vj)) {
-//                if (t.weight <= vj.capacity()) { // task change always happen with immediate delivery, so no effect to capacity (?)
-
                     State s1 = changingVehicle(s, v, vj);
                     neighbours.add(s1);
                 }
@@ -111,10 +165,8 @@ public class Planner {
         // compute number of tasks and tasks for vehicle
         int n = 0;
         TaskAnnotated ta = s.nextTask(v);
-//        Task t = ta.getTask();
         do {
             ta = s.nextTask(ta);
-//            t = ta.getTask();
             ++n;
         } while (ta != null);
 
@@ -257,7 +309,8 @@ public class Planner {
     }
 
     public State SLS() {
-        State s = selectInitialSolutionNaive();
+//        State s = selectInitialSolutionNaive();
+        State s = selectInitialSolution();
         int maxIter = 1000;
         int iter = 0;
         double bestCost = s.getCost();
