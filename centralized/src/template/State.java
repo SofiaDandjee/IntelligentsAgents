@@ -62,20 +62,27 @@ public class State {
         }
         return count;
     }
-    Integer remaingVehicleCapacity(TaskAnnotated ta, Vehicle v){
+    Boolean enoughVehicleCapacity(Integer initweight, Vehicle v){
         TaskAnnotated tanow = this.nextTask(v);
-        int weight = 0;
-//        if(tanow !=null) weight = tanow.getTask().weight;
-//        else {
-//            weight = 0;
-//        }
-        while (tanow != ta){
+        int weight = initweight; // ta1.getTask().weight+ta2.getTask().weight;
+        while (tanow != null){
             if (tanow.getActivity() == Planner.Activity.Pick) weight += tanow.getTask().weight;
             else weight -= tanow.getTask().weight;
             tanow = this.nextTask(tanow);
+            if (weight>v.capacity()) return false;
         }
-        return v.capacity()-weight;
+        return true;
     }
+//    Integer remaingVehicleCapacity(TaskAnnotated ta, Vehicle v){
+//        TaskAnnotated tanow = this.nextTask(v);
+//        int weight = 0;
+//        while (tanow != ta){
+//            if (tanow.getActivity() == Planner.Activity.Pick) weight += tanow.getTask().weight;
+//            else weight -= tanow.getTask().weight;
+//            tanow = this.nextTask(tanow);
+//        }
+//        return v.capacity()-weight;
+//    }
     Integer remaingVehicleCapacity(Vehicle v){
         TaskAnnotated tanow = this.nextTask(v);
         int weight = 0;

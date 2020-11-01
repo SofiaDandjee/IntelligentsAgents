@@ -194,23 +194,22 @@ public class Planner {
         // Logic: its okay to postpone delivery and early pickup (given capacity available), check otherwise for possible delivery before pickup
         if (t1.getActivity() == Planner.Activity.Pick){
             if (t2.getActivity() == Planner.Activity.Pick){
-                if(id2<(s1.deliveryIdxDiff(t1)+id1)) exchangeFlag=true;
+                if((id2<(s1.deliveryIdxDiff(t1)+id1))& s1.enoughVehicleCapacity((-t1.getTask().weight+t2.getTask().weight),v)) exchangeFlag=true;
             }
             else{
-                if ((s1.pickupIdx(t2,v)<id1) & (id2<(s1.deliveryIdxDiff(t1)+id1))) exchangeFlag=true;
+                if ((s1.pickupIdx(t2,v)<id1) & (id2<(s1.deliveryIdxDiff(t1)+id1))) exchangeFlag=true; // no need to check for the weight constraints coz going to deliver early
             }
         }
         else{
             if (t2.getActivity() == Planner.Activity.Pick) {
-                int remainCap = s1.remaingVehicleCapacity(t1,v)-t1.getTask().weight-t2.getTask().weight;
-                if(remainCap>=0) exchangeFlag=true;
-                else
-                    exchangeFlag=false;
+                if(s1.enoughVehicleCapacity((t1.getTask().weight+t2.getTask().weight),v)) exchangeFlag=true;
+
             }
             else{
-                if (s1.pickupIdx(t2,v) < id1) exchangeFlag=true;
+                if ((s1.pickupIdx(t2,v) < id1) & s1.enoughVehicleCapacity((t1.getTask().weight-t2.getTask().weight),v) ) exchangeFlag=true;
             }
         }
+
         if (exchangeFlag) {
             // exchanging two tasks
             if (task1Post == t2) {
@@ -263,17 +262,13 @@ public class Planner {
         int iter = 0;
         double bestCost = s.getCost();
         State bestState = s;
-//        List<Plan> tempPlan;
-//        List<Plan> tempPlan2;
         do {
             State sOld = s;
-//            tempPlan2 = CentralizedMultiTask.stateToPlan(sOld, this.vehicles);
             List <State> neighbours = chooseNeighbours(sOld);
             s = localChoice(neighbours, sOld);
             if (s.getCost() < bestCost) {
                 bestCost = s.getCost();
                 bestState = s;
-//                tempPlan = CentralizedMultiTask.stateToPlan(bestState, this.vehicles);
                 System.out.println("Better solution found!");
             }
             ++iter;
