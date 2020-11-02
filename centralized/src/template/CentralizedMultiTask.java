@@ -8,13 +8,13 @@ import logist.behavior.CentralizedBehavior;
 import logist.config.Parsers;
 import logist.plan.Plan;
 import logist.simulation.Vehicle;
-import logist.task.Task;
 import logist.task.TaskDistribution;
 import logist.task.TaskSet;
 import logist.topology.Topology;
 import logist.topology.Topology.City;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,6 +46,7 @@ public class CentralizedMultiTask implements CentralizedBehavior {
         }
         
         // the setup method cannot last more than timeout_setup milliseconds
+
         timeout_setup = ls.get(LogistSettings.TimeoutKey.SETUP);
         // the plan method cannot execute more than timeout_plan milliseconds
         timeout_plan = ls.get(LogistSettings.TimeoutKey.PLAN);
@@ -63,11 +64,12 @@ public class CentralizedMultiTask implements CentralizedBehavior {
         Planner planner;
         planner = new Planner(agent.vehicles(), new ArrayList<>(tasks));
 
-        State solution = planner.SLS();
-        solution.print();
-        List<Plan> plans = stateToPlan(solution, vehicles);
-        System.out.println(plans);
+        Solution solution = null;
 
+        solution = planner.SLS();
+
+        System.out.println(solution.getCost());
+        List<Plan> plans = stateToPlan(solution, vehicles);
         
         long time_end = System.currentTimeMillis();
         long duration = time_end - time_start;
@@ -78,7 +80,7 @@ public class CentralizedMultiTask implements CentralizedBehavior {
 
 
 
-    public static List<Plan> stateToPlan(State s, List<Vehicle> vehicles) {
+    public static List<Plan> stateToPlan(Solution s, List<Vehicle> vehicles) {
 
         List <Plan> plans = new ArrayList<>();
 

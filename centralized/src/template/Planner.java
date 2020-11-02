@@ -1,25 +1,35 @@
 package template;
 
-import logist.plan.Plan;
 import logist.simulation.Vehicle;
 import logist.task.Task;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 public class Planner {
 
     List<Vehicle> vehicles;
     List<Task> tasks;
+    List<Solution> solutions;
+    //List<String> bestCosts;
+    //List<String> candidateCosts;
+
     public enum Activity{Pick,Deliver}
 
     Planner (List<Vehicle> v, List<Task> t) {
         this.vehicles = v;
         this.tasks = t;
+        this.solutions = new ArrayList<>();
+        //this.bestCosts = new ArrayList<>();
+        //this.candidateCosts = new ArrayList<>();
     }
-    State selectInitialSolutionNaive() {
+
+    Solution selectInitialSolutionNaive() {
         HashMap<TaskAnnotated, TaskAnnotated> taskToTask = new HashMap<>();
         TaskAnnotated tanew = new TaskAnnotated(tasks.get(0), Activity.Pick);
         HashMap<Vehicle, TaskAnnotated> vehicleToTask = new HashMap<>();
@@ -56,7 +66,7 @@ public class Planner {
                 tanew = tanext;
             }
         }
-        return new State(vehicleToTask, taskToTask, taskToVehicle);
+        return new Solution(vehicleToTask, taskToTask, taskToVehicle);
     }
     Boolean enoughSpace(HashMap<Task, Vehicle> taskToVehicle, Vehicle v, Integer newWeight){
         Integer weight = newWeight;
@@ -67,7 +77,7 @@ public class Planner {
         }
         return (v.capacity()>=weight);
     }
-    State selectInitialSolution() {
+    Solution selectInitialSolution() {
         HashMap<Task, Vehicle> taskToVehicle = new HashMap<>();
         HashMap<TaskAnnotated, TaskAnnotated> taskToTask = new HashMap<>();
         HashMap<Vehicle, TaskAnnotated> vehicleToTask = new HashMap<>();
@@ -128,7 +138,7 @@ public class Planner {
             if(vehicleLastTask.get(v)==null) vehicleToTask.put(v,null);
             else taskToTask.put(vehicleLastTask.get(v),null);
         }
-        return new State(vehicleToTask, taskToTask, taskToVehicle);
+        return new Solution(vehicleToTask, taskToTask, taskToVehicle);
     }
 
     private int getIdBiggestVehicle() {
@@ -143,8 +153,8 @@ public class Planner {
         return maxVehicle;
     }
 
-    private List<State> chooseNeighbours(State s) {
-        List<State> neighbours = new ArrayList<>();
+    private List<Solution> chooseNeighbours(Solution s) {
+        List<Solution> neighbours = new ArrayList<>();
         // get random vehicle that has a task
         Random rand = new Random();
         Vehicle v;
@@ -156,13 +166,13 @@ public class Planner {
             if (v != vj) {
                 Task t = s.nextTask(v).getTask();
                 if (t.weight <= s.remaingVehicleCapacity(vj)) {
-                    State s1 = changingVehicle(s, v, vj);
+                    Solution s1 = changingVehicle(s, v, vj);
                     neighbours.add(s1);
                 }
             }
         }
         // Applying the changing task order
-        // compute number of tasks and tasks for vehicle
+        // compute number of task actions for vehicle
         int n = 0;
         TaskAnnotated ta = s.nextTask(v);
         do {
@@ -174,7 +184,7 @@ public class Planner {
         if (n > 3) {
             for (int id1 = 1; id1 <= n-1; ++id1) {
                 for (int id2 = id1+1; id2 <= n; ++id2) {
-                    State s1 = changingTaskOrder(s, v, id1, id2);
+                    Solution s1 = changingTaskOrder(s, v, id1, id2);
                     neighbours.add(s1);
                 }
             }
@@ -182,9 +192,9 @@ public class Planner {
         return neighbours;
     }
 
-    private State changingVehicle(State s, Vehicle v1, Vehicle v2) {
+    private Solution changingVehicle(Solution s, Vehicle v1, Vehicle v2) {
 
-        State s1 = new State(s);
+        Solution s1 = new Solution(s);
         TaskAnnotated ta_delivery;
         TaskAnnotated ta = s1.nextTaskAnnot(v1);
         TaskAnnotated ta2 = s1.nextTaskAnnot(ta);
@@ -202,12 +212,11 @@ public class Planner {
         s1.setNextTaskforVehicle(v2, ta);
 
         s1.setVehicle(ta.getTask(), v2);
-
         return s1;
     }
 
-    private State changingTaskOrder(State s, Vehicle v, int id1, int id2) {
-        State s1 = new State(s);
+    private Solution changingTaskOrder(Solution s, Vehicle v, int id1, int id2) {
+        Solution s1 = new Solution(s);
         TaskAnnotated task1Prev;
         TaskAnnotated t1;
 
@@ -289,44 +298,69 @@ public class Planner {
         return s1;
     }
 
-    private State localChoice(List<State> N, State sOld) {
-        double minCost = Double.POSITIVE_INFINITY;
+    private Solution localChoice(List<Solution> neighbours, Solution sOld) {
+        double minCost = Double.MAX_VALUE;
         double cost;
-        List<State> bestChoices = new ArrayList<>();
+        Solution bestChoice = sOld;
         double probThreshold = 0.5;
-        for (State neighbour : N) {
-            cost = neighbour.getCost();
+        Random rand = new Random();
+        List<Solution> bestChoices = new ArrayList<>();
+        for (Solution n : neighbours) {
+            cost = n.getCost();
             if (cost < minCost) {
                 minCost = cost;
-                bestChoices.add(neighbour);
+                bestChoice = n;
+                bestChoices.add(n);
             }
         }
-        if(Math.random() > probThreshold){
+
+        if(rand.nextInt() > probThreshold){
+            //We keep the best solution even if we discard it during the search
+            if (minCost < sOld.getCost()) { solutions.add(bestChoice); }
             return sOld;
         }
-        return bestChoices.get(new Random().nextInt(bestChoices.size()));
+
+        return bestChoice;
     }
 
-    public State SLS() {
+    public Solution SLS() {
 //        State s = selectInitialSolutionNaive();
-        State s = selectInitialSolution();
-        int maxIter = 5000;
+        Solution s = selectInitialSolution();
+        int maxIter = 10000;
         int iter = 0;
-        double bestCost = s.getCost();
-        State bestState = s;
         do {
-            State sOld = s;
-            List <State> neighbours = chooseNeighbours(sOld);
+            Solution sOld = s;
+            List<Solution> neighbours = chooseNeighbours(sOld);
             s = localChoice(neighbours, sOld);
-            if (s.getCost() < bestCost) {
-                bestCost = s.getCost();
-                bestState = s;
-                System.out.println("Better solution found!");
-            }
             ++iter;
 
         } while (iter < maxIter);
-        return bestState;
+
+//        FileWriter writer = new FileWriter("/Users/Sofia/Documents/slsSolutions.csv");
+//        FileWriter writer1 = new FileWriter("/Users/Sofia/Documents/slsCandidates.csv");
+//        String collect = bestCosts.stream().collect(Collectors.joining(","));
+//        String collect1 = candidateCosts.stream().collect(Collectors.joining(","));
+//        writer.write(collect);
+//        writer1.write(collect1);
+//        writer.close();
+        /*for (Solution sol: solutions) {
+            System.out.println(sol.getCost());
+        }*/
+
+        return bestSolution();
     }
+
+    private Solution bestSolution() {
+        Solution bestSolution = solutions.get(0);
+        double minCost = bestSolution.getCost();
+        for (Solution s : solutions) {
+            if (s.getCost() < minCost) {
+                bestSolution = s;
+                minCost = s.getCost();
+            }
+        }
+        return bestSolution;
+    }
+
 
 }

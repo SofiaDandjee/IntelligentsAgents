@@ -1,26 +1,24 @@
 package template;
 
-import logist.plan.Plan;
 import logist.simulation.Vehicle;
 import logist.task.Task;
 
 import java.util.HashMap;
-import java.util.List;
 
-public class State {
+public class Solution {
 
     HashMap<Vehicle, TaskAnnotated> nextTaskVehicle;
     HashMap<TaskAnnotated, TaskAnnotated> nextTaskTask;
     HashMap<Task, Vehicle> vehicle;
 
-    State (HashMap<Vehicle, TaskAnnotated> ntv, HashMap<TaskAnnotated, TaskAnnotated> ntt, HashMap<Task, Vehicle> v) { //, HashMap<Task, Integer> t
+    Solution(HashMap<Vehicle, TaskAnnotated> ntv, HashMap<TaskAnnotated, TaskAnnotated> ntt, HashMap<Task, Vehicle> v) { //, HashMap<Task, Integer> t
         nextTaskTask = ntt;
         nextTaskVehicle = ntv;
 //        time = t;
         vehicle = v;
     }
 
-    State(State s) {
+    Solution(Solution s) {
         this.nextTaskTask = new HashMap<>(s.nextTaskTask);
         this.nextTaskVehicle = new HashMap<>(s.nextTaskVehicle);
         this.vehicle = new HashMap<>(s.vehicle);
@@ -150,24 +148,24 @@ public class State {
 
     void print() {
 
-//        for (TaskAnnotated ta: nextTaskTask.keySet()) {
-//            Task t = ta.getTask();
-//            System.out.print("Next task of task " + t.id + t.pickupCity.name + t.deliveryCity.name + " : ");
-//            if (nextTask(ta) == null) {
-//                System.out.println("null");
-//            } else {
-//                System.out.println(nextTask(ta).getTask().id);
-//            }
-//        }
-//
-//        for (Vehicle v: nextTaskVehicle.keySet()) {
-//            System.out.print("Next task of vehicle " + v.id() + "("+v.homeCity().name+ ") : ");
-//            if (nextTask(v) == null) {
-//                System.out.println("null");
-//            } else {
-//                System.out.println(nextTask(v).getTask().id);
-//            }
-//        }
+        for (TaskAnnotated ta: nextTaskTask.keySet()) {
+            Task t = ta.getTask();
+            System.out.print("Next task of task " + t.id + " " + ta.getActivity() + " : ");
+            if (nextTask(ta) == null) {
+                System.out.println("null");
+            } else {
+                System.out.println(nextTask(ta).getTask().id);
+            }
+        }
+
+        for (Vehicle v: nextTaskVehicle.keySet()) {
+            System.out.print("Next task of vehicle " + v.id() + "("+v.homeCity().name+ ") : ");
+            if (nextTask(v) == null) {
+                System.out.println("null");
+            } else {
+                System.out.println(nextTask(v).getTask().id + " " + nextTask(v).getActivity());
+            }
+        }
 
 
     }
