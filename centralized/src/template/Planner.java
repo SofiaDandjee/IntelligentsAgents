@@ -3,6 +3,7 @@ package template;
 import logist.simulation.Vehicle;
 import logist.task.Task;
 
+import javax.sound.midi.SysexMessage;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -15,14 +16,20 @@ public class Planner {
 
     List<Vehicle> vehicles;
     List<Task> tasks;
+    List<Solution> solutions;
     Solution bestSolution;
     Double bestCost;
+    long startTime;
+    long timeout;
 
     public enum Activity{Pick,Deliver}
 
-    Planner (List<Vehicle> v, List<Task> t) {
+    Planner (List<Vehicle> v, List<Task> t, long start, long to) {
         this.vehicles = v;
         this.tasks = t;
+        this.solutions = new ArrayList<>();
+        this.timeout = to;
+        this.startTime = start;
     }
 
     Solution selectInitialSolutionNaive() {
@@ -112,7 +119,8 @@ public class Planner {
                 vehicleLastTask.put(v,taskToTaskAnnot.get(t.id+tasks.size()));
             }
         }
-        for (Task t : tasks) { // seperate for loop is needed to makesure vehicles have capacity to take new tasks
+        for (Task t : tasks) {
+            // seperate for loop is needed to makesure vehicles have capacity to take new tasks
             Vehicle v = taskToVehicle.get(t);
             if (v == null) {
                 do {
@@ -156,18 +164,27 @@ public class Planner {
         Vehicle v;
         do {
             v = vehicles.get(rand.nextInt(vehicles.size()));
-        } while (s.nextTask(v) == null);
+        } while (s.actionPlan(v) == null);
+
         // Applying the changing vehicle operator
+        List<Task> plan = s.getTasks(v);
         for (Vehicle vj : vehicles) {
             if (v != vj) {
-                Task t = s.nextTask(v).getTask();
-                if (t.weight <= s.remaingVehicleCapacity(vj)) {
-                    Solution s1 = changingVehicle(s, v, vj);
-                    neighbours.add(s1);
+                for (Task t : plan) {
+                    if (t.weight <= s.remaingVehicleCapacity(vj)) {
+                        Solution s1 = changingVehicleBis(s, v, t, vj);
+                        neighbours.add(s1);
+                    }
                 }
             }
         }
+
+
         // Applying the changing task order
+        do {
+            v = vehicles.get(rand.nextInt(vehicles.size()));
+        } while (s.actionPlan(v) == null);
+
         // compute number of task actions for vehicle
         int n = 0;
         TaskAnnotated ta = s.nextTask(v);
@@ -181,7 +198,7 @@ public class Planner {
             for (int id1 = 1; id1 <= n-1; ++id1) {
                 for (int id2 = id1+1; id2 <= n; ++id2) {
                     Solution s1 = changingTaskOrder(s, v, id1, id2);
-                    neighbours.add(s1);
+                    if (s1!=null) {neighbours.add(s1);}
                 }
             }
         }
@@ -191,23 +208,38 @@ public class Planner {
     private Solution changingVehicle(Solution s, Vehicle v1, Vehicle v2) {
 
         Solution s1 = new Solution(s);
+
         TaskAnnotated ta_delivery;
-        TaskAnnotated ta = s1.nextTaskAnnot(v1);
-        TaskAnnotated ta2 = s1.nextTaskAnnot(ta);
+        TaskAnnotated ta = s1.nextTask(v1);
+        TaskAnnotated ta2 = s1.nextTask(ta);
         if (ta2.getActivity() == Activity.Pick){
             s1.setNextTaskforVehicle(v1, ta2);
-            ta_delivery = s1.removeTaskDelivery(ta); // remove delivery from the task chain
+            ta_delivery = s1.removeTaskDelivery(ta.getTask()); // remove delivery from the task chain
         }
         else{
-            s1.setNextTaskforVehicle(v1, s1.nextTaskAnnot(ta2));
+            s1.setNextTaskforVehicle(v1, s1.nextTask(ta2));
             ta_delivery = ta2;
         }
 
         s1.setNextTaskforTask(ta, ta_delivery );
-        s1.setNextTaskforTask(ta_delivery, s1.nextTaskAnnot(v2) );
+        s1.setNextTaskforTask(ta_delivery, s1.nextTask(v2) );
         s1.setNextTaskforVehicle(v2, ta);
 
         s1.setVehicle(ta.getTask(), v2);
+        return s1;
+    }
+
+    private Solution changingVehicleBis(Solution s, Vehicle v1, Task ta, Vehicle v2) {
+
+        Solution s1 = new Solution(s);
+        if(!s1.isValid()) {System.out.println("plan not valid before removing pickup!");}
+        TaskAnnotated ta_delivery = s1.removeTaskDelivery(ta);
+        TaskAnnotated ta_pickup = s1.removeTaskPickup(ta);
+        s1.setNextTaskforTask(ta_pickup, ta_delivery );
+        s1.setNextTaskforTask(ta_delivery, s1.nextTask(v2));
+        s1.setNextTaskforVehicle(v2, ta_pickup);
+        s1.setVehicle(ta, v2);
+        if(!s1.isValid()) {System.out.println("plan not valid after removing deliver + pickup!");}
         return s1;
     }
 
@@ -248,21 +280,24 @@ public class Planner {
         Boolean exchangeFlag = false;
         // Logic: its okay to postpone delivery and do an early pickup (given capacity available),
         // otherwise check for possibility of delivery before pickup
-        if (t1.getActivity() == Planner.Activity.Pick){
-            if (t2.getActivity() == Planner.Activity.Pick){
-                if((id2<(s1.deliveryIdxDiff(t1)+id1))& s1.enoughVehicleCapacity((-t1.getTask().weight+t2.getTask().weight),v)) exchangeFlag=true;
-            }
-            else{
-                if ((s1.pickupIdx(t2,v)<id1) & (id2<(s1.deliveryIdxDiff(t1)+id1))) exchangeFlag=true; // no need to check for the weight constraints coz going to deliver early
-            }
-        }
-        else{
-            if (t2.getActivity() == Planner.Activity.Pick) {
-                if(s1.enoughVehicleCapacity((t1.getTask().weight+t2.getTask().weight),v)) exchangeFlag=true;
+        if(t1.getTask() != t2.getTask()) {
+            // cannot exchange pickup and delivery order of same task
+            if (t1.isPickup()) {
+                if (t2.isPickup()) {
+                    if ((id2 < (s1.deliveryIdxDiff(t1) + id1)) & s1.enoughVehicleCapacity((-t1.getTask().weight + t2.getTask().weight), v))
+                        exchangeFlag = true;
+                } else {
+                    if ((s1.pickupIdx(t2, v) < id1) & (id2 < (s1.deliveryIdxDiff(t1) + id1)))
+                        exchangeFlag = true; // no need to check for the weight constraints coz going to deliver early
+                }
+            } else {
+                if (t2.isPickup()) {
+                    if (s1.enoughVehicleCapacity((t1.getTask().weight + t2.getTask().weight), v)) exchangeFlag = true;
 
-            }
-            else{
-                if ((s1.pickupIdx(t2,v) < id1) & s1.enoughVehicleCapacity((t1.getTask().weight-t2.getTask().weight),v) ) exchangeFlag=true;
+                } else {
+                    if ((s1.pickupIdx(t2, v) < id1) & s1.enoughVehicleCapacity((t1.getTask().weight - t2.getTask().weight), v))
+                        exchangeFlag = true;
+                }
             }
         }
 
@@ -289,15 +324,16 @@ public class Planner {
                 s1.setNextTaskforTask(t2, task1Post);
                 s1.setNextTaskforTask(t1, task2Post);
             }
-        }
+            if(!s1.isValid()) {System.out.println("plan not valid in changing task order!");}
+            return s1;
+        } else return null;
 
-        return s1;
     }
 
     private Solution localChoice(List<Solution> neighbours, Solution sOld) {
         double minCost = Double.MAX_VALUE;
         double cost;
-        double probThreshold = 0.5;
+        double probThreshold = 0.1;
         Random rand = new Random();
         List<Solution> bestChoices = new ArrayList<>();
         List<Solution> bestPossibleChoices = new ArrayList<>();
@@ -310,6 +346,7 @@ public class Planner {
                     //We keep the best solution even if we discard it during the search
                     bestSolution = n;
                     bestCost =cost;
+                    System.out.println(bestCost);
                 }
             }
         }
@@ -321,40 +358,26 @@ public class Planner {
         for (Solution bestn: bestPossibleChoices){
             if (bestn.getCost() == minCost) bestChoices.add(bestn);
         }
-        Integer a = rand.nextInt(bestChoices.size());
-        return bestChoices.get(a);
+        Integer a = rand.nextInt(bestPossibleChoices.size());
+        return bestPossibleChoices.get(a);
     }
 
     public Solution SLS() {
-//        State s = selectInitialSolutionNaive();
         Solution s = selectInitialSolution();
         bestSolution = s;
         bestCost= s.getCost();
-        int maxIter = 1000;
+        int maxIter = 20000;
         int iter = 0;
+        s.print();
         do {
             Solution sOld = s;
             List<Solution> neighbours = chooseNeighbours(sOld);
             s = localChoice(neighbours, sOld);
             ++iter;
 
-        } while (iter < maxIter);
+        } while (System.currentTimeMillis() - this.startTime < this.timeout - 100);
 
-//        FileWriter writer = new FileWriter("/Users/Sofia/Documents/slsSolutions.csv");
-//        FileWriter writer1 = new FileWriter("/Users/Sofia/Documents/slsCandidates.csv");
-//        String collect = bestCosts.stream().collect(Collectors.joining(","));
-//        String collect1 = candidateCosts.stream().collect(Collectors.joining(","));
-//        writer.write(collect);
-//        writer1.write(collect1);
-//        writer.close();
-        /*for (Solution sol: solutions) {
-            System.out.println(sol.getCost());
-        }*/
-
-//        return bestSolution();
-        return bestSolution;
+        return  bestSolution;
     }
-
-
 
 }

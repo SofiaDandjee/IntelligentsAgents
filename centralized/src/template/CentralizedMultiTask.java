@@ -61,26 +61,24 @@ public class CentralizedMultiTask implements CentralizedBehavior {
     public List<Plan> plan(List<Vehicle> vehicles, TaskSet tasks) {
         long time_start = System.currentTimeMillis();
 
-        Planner planner;
-        planner = new Planner(agent.vehicles(), new ArrayList<>(tasks));
+        Planner planner = new Planner(agent.vehicles(), new ArrayList<>(tasks), time_start, timeout_plan);
 
-        Solution solution = null;
-
-        solution = planner.SLS();
+        Solution solution = planner.SLS();
 
         System.out.println("The total-cost is " + solution.getCost());
-        List<Plan> plans = stateToPlan(solution, vehicles);
+        
+        List<Plan> plans = buildPlan(solution, vehicles);
         
         long time_end = System.currentTimeMillis();
         long duration = time_end - time_start;
         System.out.println("The plan was generated in " + duration + " milliseconds.");
-
+        
         return plans;
     }
 
 
 
-    public static List<Plan> stateToPlan(Solution s, List<Vehicle> vehicles) {
+    public static List<Plan> buildPlan(Solution s, List<Vehicle> vehicles) {
 
         List <Plan> plans = new ArrayList<>();
 
