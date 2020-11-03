@@ -232,14 +232,14 @@ public class Planner {
     private Solution changingVehicleBis(Solution s, Vehicle v1, Task ta, Vehicle v2) {
 
         Solution s1 = new Solution(s);
-        if(!s1.isValid()) {System.out.println("plan not valid before removing pickup!");}
+
         TaskAnnotated ta_delivery = s1.removeTaskDelivery(ta);
         TaskAnnotated ta_pickup = s1.removeTaskPickup(ta);
         s1.setNextTaskforTask(ta_pickup, ta_delivery );
         s1.setNextTaskforTask(ta_delivery, s1.nextTask(v2));
         s1.setNextTaskforVehicle(v2, ta_pickup);
         s1.setVehicle(ta, v2);
-        if(!s1.isValid()) {System.out.println("plan not valid after removing deliver + pickup!");}
+
         return s1;
     }
 
@@ -324,13 +324,12 @@ public class Planner {
                 s1.setNextTaskforTask(t2, task1Post);
                 s1.setNextTaskforTask(t1, task2Post);
             }
-            if(!s1.isValid()) {System.out.println("plan not valid in changing task order!");}
             return s1;
         } else return null;
 
     }
 
-    private Solution localChoice(List<Solution> neighbours, Solution sOld) {
+    private Solution localChoice(List<Solution> neighbours, Solution sOld, int iter) {
         double minCost = Double.MAX_VALUE;
         double cost;
         double probThreshold = 0.5;
@@ -347,6 +346,7 @@ public class Planner {
                     bestSolution = n;
                     bestCost =cost;
                     System.out.println(bestCost);
+                    System.out.println(iter);
                 }
             }
         }
@@ -358,25 +358,25 @@ public class Planner {
         for (Solution bestn: bestPossibleChoices){
             if (bestn.getCost() == minCost) bestChoices.add(bestn);
         }
-        return bestChoices.get(rand.nextInt(bestChoices.size()));
+        Integer a = rand.nextInt(bestChoices.size());
+        return bestChoices.get(a);
+        //return bestSolution;
     }
 
     public Solution SLS() {
         Solution s = selectInitialSolution();
         bestSolution = s;
         bestCost= s.getCost();
-        int maxIter = 5000;
+        int maxIter = 10000;
         int iter = 0;
-        s.print();
         do {
             Solution sOld = s;
             List<Solution> neighbours = chooseNeighbours(sOld);
-            s = localChoice(neighbours, sOld);
+            s = localChoice(neighbours, sOld, iter);
             ++iter;
 
-        } while (System.currentTimeMillis() - this.startTime < this.timeout - 100);
-//        } while (iter<maxIter);
-
+        } while (System.currentTimeMillis() - this.startTime < this.timeout - 2000);
+        //} while(iter < maxIter);
         return  bestSolution;
     }
 

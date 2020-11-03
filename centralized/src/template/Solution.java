@@ -31,15 +31,12 @@ public class Solution {
     TaskAnnotated nextTask(Vehicle v) {
         return nextTaskVehicle.get(v);
     }
-    //TaskAnnotated nextTaskAnnot(Vehicle v) {
-    //    return nextTaskVehicle.get(v);
-    //}
 
     TaskAnnotated removeTaskDelivery(Task ta){
-        //Task t_org = ta.getTask(); // init ta must be a pickup, do additional check if needed
+
         Vehicle v = vehicle(ta);
         TaskAnnotated deliver = new TaskAnnotated(ta, Planner.Activity.Deliver);
-        //TaskAnnotated ta2 = this.nextTask(ta); // init ta2 is also a pickup, according to the usage of the func.
+
         TaskAnnotated ta2 = nextTask(v);
 
         TaskAnnotated previous = null;
@@ -54,11 +51,11 @@ public class Solution {
     }
 
     TaskAnnotated removeTaskPickup(Task ta) {
-        //Remove pickup first
+
         Vehicle v = vehicle(ta);
         TaskAnnotated pickup = new TaskAnnotated(ta, Planner.Activity.Pick);
         TaskAnnotated ta2 = nextTask(v);
-        //TaskAnnotated next = nextTask(first);
+
         if (ta2.equals(pickup)) {
             TaskAnnotated nextPickup = nextTask(ta2);
             while (nextPickup != null && nextPickup.getActivity() != Planner.Activity.Pick) {
@@ -133,9 +130,6 @@ public class Solution {
         return nextTaskTask.get(t);
     }
 
-    /*TaskAnnotated nextTaskAnnot(TaskAnnotated t) {
-        return nextTaskTask.get(t);
-    }*/
 
     Vehicle vehicle (Task t) {
         return vehicle.get(t);
