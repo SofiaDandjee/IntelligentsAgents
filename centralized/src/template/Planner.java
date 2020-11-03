@@ -333,7 +333,7 @@ public class Planner {
     private Solution localChoice(List<Solution> neighbours, Solution sOld) {
         double minCost = Double.MAX_VALUE;
         double cost;
-        double probThreshold = 0.1;
+        double probThreshold = 0.5;
         Random rand = new Random();
         List<Solution> bestChoices = new ArrayList<>();
         List<Solution> bestPossibleChoices = new ArrayList<>();
@@ -358,15 +358,14 @@ public class Planner {
         for (Solution bestn: bestPossibleChoices){
             if (bestn.getCost() == minCost) bestChoices.add(bestn);
         }
-        Integer a = rand.nextInt(bestPossibleChoices.size());
-        return bestPossibleChoices.get(a);
+        return bestChoices.get(rand.nextInt(bestChoices.size()));
     }
 
     public Solution SLS() {
         Solution s = selectInitialSolution();
         bestSolution = s;
         bestCost= s.getCost();
-        int maxIter = 20000;
+        int maxIter = 5000;
         int iter = 0;
         s.print();
         do {
@@ -376,6 +375,7 @@ public class Planner {
             ++iter;
 
         } while (System.currentTimeMillis() - this.startTime < this.timeout - 100);
+//        } while (iter<maxIter);
 
         return  bestSolution;
     }
