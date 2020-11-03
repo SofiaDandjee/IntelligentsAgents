@@ -15,18 +15,14 @@ public class Planner {
 
     List<Vehicle> vehicles;
     List<Task> tasks;
-    List<Solution> solutions;
-    //List<String> bestCosts;
-    //List<String> candidateCosts;
+    Solution bestSolution;
+    Double bestCost;
 
     public enum Activity{Pick,Deliver}
 
     Planner (List<Vehicle> v, List<Task> t) {
         this.vehicles = v;
         this.tasks = t;
-        this.solutions = new ArrayList<>();
-        //this.bestCosts = new ArrayList<>();
-        //this.candidateCosts = new ArrayList<>();
     }
 
     Solution selectInitialSolutionNaive() {
@@ -301,32 +297,40 @@ public class Planner {
     private Solution localChoice(List<Solution> neighbours, Solution sOld) {
         double minCost = Double.MAX_VALUE;
         double cost;
-        Solution bestChoice = sOld;
         double probThreshold = 0.5;
         Random rand = new Random();
         List<Solution> bestChoices = new ArrayList<>();
+        List<Solution> bestPossibleChoices = new ArrayList<>();
         for (Solution n : neighbours) {
             cost = n.getCost();
             if (cost < minCost) {
                 minCost = cost;
-                bestChoice = n;
-                bestChoices.add(n);
+                bestPossibleChoices.add(n);
+                if (cost<bestCost){
+                    //We keep the best solution even if we discard it during the search
+                    bestSolution = n;
+                    bestCost =cost;
+                }
             }
         }
-
+        // we discard the new best with probability 1-p
         if(rand.nextInt() > probThreshold){
-            //We keep the best solution even if we discard it during the search
-            if (minCost < sOld.getCost()) { solutions.add(bestChoice); }
             return sOld;
         }
-
-        return bestChoice;
+        // else we output a random Solution with min cost
+        for (Solution bestn: bestPossibleChoices){
+            if (bestn.getCost() == minCost) bestChoices.add(bestn);
+        }
+        Integer a = rand.nextInt(bestChoices.size());
+        return bestChoices.get(a);
     }
 
     public Solution SLS() {
 //        State s = selectInitialSolutionNaive();
         Solution s = selectInitialSolution();
-        int maxIter = 10000;
+        bestSolution = s;
+        bestCost= s.getCost();
+        int maxIter = 1000;
         int iter = 0;
         do {
             Solution sOld = s;
@@ -347,20 +351,10 @@ public class Planner {
             System.out.println(sol.getCost());
         }*/
 
-        return bestSolution();
-    }
-
-    private Solution bestSolution() {
-        Solution bestSolution = solutions.get(0);
-        double minCost = bestSolution.getCost();
-        for (Solution s : solutions) {
-            if (s.getCost() < minCost) {
-                bestSolution = s;
-                minCost = s.getCost();
-            }
-        }
+//        return bestSolution();
         return bestSolution;
     }
+
 
 
 }

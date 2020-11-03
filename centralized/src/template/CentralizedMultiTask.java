@@ -68,13 +68,13 @@ public class CentralizedMultiTask implements CentralizedBehavior {
 
         solution = planner.SLS();
 
-        System.out.println(solution.getCost());
+        System.out.println("The total-cost is " + solution.getCost());
         List<Plan> plans = stateToPlan(solution, vehicles);
         
         long time_end = System.currentTimeMillis();
         long duration = time_end - time_start;
         System.out.println("The plan was generated in " + duration + " milliseconds.");
-        
+
         return plans;
     }
 
