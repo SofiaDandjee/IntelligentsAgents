@@ -142,14 +142,11 @@ public class Planner {
                     taskToVehicle.put(t,v);
                     TaskAnnotated ta = vehicleToTask.get(v);
                     if(ta == null) {
- //                       vehicleToTask.put(v,taskToTaskAnnot.get(t.id));
                         vehicleToTask.put(v, taskToPickup.get(t.id));
                     }
                     else{
- //                       taskToTask.put(vehicleLastTask.get(v),taskToTaskAnnot.get(t.id));
                         taskToTask.put(vehicleLastTask.get(v), taskToPickup.get(t.id));
                     }
-//                    vehicleLastTask.put(v,taskToTaskAnnot.get(t.id));
                     vehicleLastTask.put(v, taskToPickup.get(t.id));
                 }
             }
@@ -159,21 +156,14 @@ public class Planner {
         for (Task t : tasks) {
             Vehicle v = taskToVehicle.get(t);
             if (v != null){
-//                taskToTask.put(vehicleLastTask.get(v),taskToTaskAnnot.get(t.id+tasks.size()));
-//                vehicleLastTask.put(v,taskToTaskAnnot.get(t.id+tasks.size()));
                 taskToTask.put(vehicleLastTask.get(v),taskToDeliver.get(t.id));
                 vehicleLastTask.put(v, taskToDeliver.get(t.id));
             }
         }
 
-//        System.out.println(taskToVehicle);
-//        System.out.println(taskToTask);
-//        System.out.println(vehicleToTask);
-//        System.out.println(taskToTaskAnnot);
         for (Task t : tasks) {
             // seperate for loop is needed to makesure vehicles have capacity to take new tasks
             Vehicle v = taskToVehicle.get(t);
-//            System.out.println("Inserting "+t.id);
             if (v == null) {
                 do {
                     v = vehicles.get(rand.nextInt(vehicles.size()));
@@ -181,17 +171,10 @@ public class Planner {
                 taskToVehicle.put(t, v);
                 TaskAnnotated ta = vehicleToTask.get(v);
                 if (ta == null) {
-//                    System.out.println("Inserting " + taskToPickup.get(t.id) + "into vehicle "+v.id());
-//                    vehicleToTask.put(v, taskToTaskAnnot.get(t.id));
                     vehicleToTask.put(v, taskToPickup.get(t.id));
                 } else {
-//                    System.out.println("Inserting " + taskToPickup.get(t.id) + "after "+vehicleLastTask.get(v));
-//                    taskToTask.put(vehicleLastTask.get(v), taskToTaskAnnot.get(t.id));
                     taskToTask.put(vehicleLastTask.get(v), taskToPickup.get(t.id));
                 }
-//                System.out.println("Inserting " + taskToDeliver.get(t.id) + "after "+taskToPickup.get(t.id));
-//                taskToTask.put(taskToTaskAnnot.get(t.id), taskToTaskAnnot.get(t.id + tasks.size()));
-//                vehicleLastTask.put(v, taskToTaskAnnot.get(t.id + tasks.size()));
                 taskToTask.put(taskToPickup.get(t.id), taskToDeliver.get(t.id));
                 vehicleLastTask.put(v, taskToDeliver.get(t.id));
             }
@@ -400,6 +383,8 @@ public class Planner {
         Random rand = new Random();
         List<Solution> bestChoices = new ArrayList<>();
         List<Solution> bestPossibleChoices = new ArrayList<>();
+
+        //System.out.println(neighbours.size());
         for (Solution n : neighbours) {
             cost = n.getCost();
             if (cost < minCost) {
@@ -408,12 +393,12 @@ public class Planner {
                 if (cost<bestCost){
                     //We keep the best solution even if we discard it during the search
                     bestSolution = n;
-                    bestCost =cost;
+                    bestCost = cost;
                     //System.out.println(bestCost);
-                    //System.out.println(iter);
                 }
             }
         }
+
         // we discard the new best with probability 1-p
         if(rand.nextInt() > probThreshold){
             return sOld;
@@ -424,16 +409,15 @@ public class Planner {
         }
         Integer a = rand.nextInt(bestChoices.size());
         return bestChoices.get(a);
-        //return bestSolution;
+
     }
 
     public Solution SLS() {
         Solution s = selectInitialSolution();
         if (!s.isValid()) {
-            //System.out.println(tasks);
             System.out.println("init sol not valid");
         s.print();}
-        //s.print();
+
         bestSolution = s;
         bestCost= s.getCost();
         int maxIter = 2000;
@@ -445,6 +429,27 @@ public class Planner {
             ++iter;
 
         //} while (System.currentTimeMillis() - this.startTime < this.timeout - 2000);
+        } while(iter < maxIter);
+        return  bestSolution;
+    }
+
+    public Solution search(Solution init) {
+
+        Solution s = init;
+        if (!s.isValid()) {
+            System.out.println("init sol not valid");
+            s.print();}
+
+        bestSolution = s;
+        bestCost= s.getCost();
+        int maxIter = 10000;
+        int iter = 0;
+        do {
+            Solution sOld = s;
+            List<Solution> neighbours = chooseNeighbours(sOld);
+            s = localChoice(neighbours, sOld, iter);
+            ++iter;
+            //} while (System.currentTimeMillis() - this.startTime < this.timeout - 2000);
         } while(iter < maxIter);
         return  bestSolution;
     }

@@ -12,6 +12,11 @@ public class Solution {
     HashMap<TaskAnnotated, TaskAnnotated> nextTaskTask;
     HashMap<Task, Vehicle> vehicle;
 
+    Solution() {
+        this.nextTaskTask = new HashMap<>();
+        this.nextTaskVehicle = new HashMap<>();
+        this.vehicle = new HashMap<>();
+    }
     Solution(HashMap<Vehicle, TaskAnnotated> ntv, HashMap<TaskAnnotated, TaskAnnotated> ntt, HashMap<Task, Vehicle> v) { //, HashMap<Task, Integer> t
         nextTaskTask = ntt;
         nextTaskVehicle = ntv;
@@ -182,6 +187,38 @@ public class Solution {
         return cost;
     }
 
+    double getDistance() {
+        double cost = 0;
+
+        for (Vehicle v : nextTaskVehicle.keySet()) {
+            TaskAnnotated next = nextTask(v);
+            if (next != null) {
+                cost += (v.homeCity().distanceTo(next.getTask().pickupCity));
+            }
+        }
+        for (TaskAnnotated taskA : nextTaskTask.keySet()) {
+            Task task = taskA.getTask();
+            TaskAnnotated nextA = nextTask(taskA);
+            if (nextA != null) {
+                Task next = nextA.getTask();
+                if (taskA.getActivity() == Planner.Activity.Pick){
+                    if (nextA.getActivity() == Planner.Activity.Pick)
+                        cost += (task.pickupCity.distanceTo(next.pickupCity));
+                    else
+                        cost += (task.pickupCity.distanceTo(next.deliveryCity));
+
+                }
+                else{
+                    if (nextA.getActivity() == Planner.Activity.Pick)
+                        cost += (task.deliveryCity.distanceTo(next.pickupCity));
+                    else
+                        cost += (task.deliveryCity.distanceTo(next.deliveryCity));
+                }
+            }
+        }
+        return cost;
+    }
+
     void print() {
 
         for (TaskAnnotated ta: nextTaskTask.keySet()) {
@@ -202,6 +239,9 @@ public class Solution {
                 System.out.println(nextTask(v).getTask().id + " " + nextTask(v).getActivity() + " " + nextTask(v).getTask().pickupCity.name);
             }
         }
+
+        System.out.println("Cost is " + getCost());
+        System.out.println("Distance is " + getDistance());
 
     }
 
@@ -277,7 +317,7 @@ public class Solution {
         return true;
     }
 
-    void insertTask(Task task) {
+    void insertTaskNaive(Task task) {
         //give task to random vehicle
         Random rand = new Random();
         List<Vehicle> vehicles = new ArrayList<Vehicle>(nextTaskVehicle.keySet());
@@ -304,6 +344,58 @@ public class Solution {
 
     }
 
+    void insertTask(Task task) {
+        //give task to random vehicle
+
+        List<Vehicle> vehicles = new ArrayList<Vehicle>(nextTaskVehicle.keySet());
+//        Vehicle v = vehicles.get(rand.nextInt(vehicles.size()));
+        TaskAnnotated pickup = new TaskAnnotated(task, Planner.Activity.Pick);
+        TaskAnnotated delivery = new TaskAnnotated(task, Planner.Activity.Deliver);
+
+        // insert task pick up and delivery if vehicle home city is task pickup city
+        for (Vehicle v : vehicles) {
+            if (v.homeCity() == task.pickupCity) {
+                if (actionPlan(v) == null) {
+                    setNextTaskforVehicle(v, pickup);
+                } else {
+                    if (nextTask(v).getTask().pickupCity != v.homeCity()) {
+                        setNextTaskforTask(delivery, nextTask(v));
+                        setNextTaskforVehicle(v, pickup);
+                    } else {
+                        setNextTaskforTask(delivery, nextTask(nextTask(v)));
+                        setNextTaskforTask(nextTask(v), pickup);
+                    }
+                }
+                setVehicle(task, v);
+                setNextTaskforTask(pickup, delivery);
+                return;
+
+            }
+        }
+        TaskAnnotated insertAfter = null;
+
+        //insert task pickup and delivery after a delivery that is closest to task pickup city
+        double shortest = Double.POSITIVE_INFINITY;
+        for (Vehicle v : vehicles) {
+            List<TaskAnnotated> plan = actionPlan(v);
+            if (plan != null) {
+                for (TaskAnnotated ta : plan) {
+                    if (ta.getTask().deliveryCity.distanceTo(task.pickupCity) < shortest && ta.getActivity() == Planner.Activity.Deliver) {
+                        shortest = ta.getTask().deliveryCity.distanceTo(task.pickupCity);
+                        insertAfter = ta;
+                    }
+                }
+            }
+        }
+
+        Vehicle v = vehicle(insertAfter.getTask());
+        setVehicle(task, v);
+
+        setNextTaskforTask(delivery, nextTask(insertAfter));
+        setNextTaskforTask(insertAfter, pickup);
+        setNextTaskforTask(pickup, delivery);
+
+    }
 
 
 }
