@@ -40,6 +40,7 @@ public class AuctionPlanner implements AuctionBehavior {
 	private Planner opponentPlanner;
 	private Integer numAuctions;
 	private Long winningBids;
+	private List<Long> historicalBids;
 	private List<Long> opponentBids;
 	private List<Long> ownBids;
 	private List<Double> opponentMarginalCosts;
@@ -62,6 +63,7 @@ public class AuctionPlanner implements AuctionBehavior {
 		long seed = -9019554669489983951L * currentCity.hashCode() * agent.id();
 		this.random = new Random(seed);
 		this.winningBids = (long) 0;
+		this.historicalBids = new ArrayList<>();
 		this.opponentBids = new ArrayList<>();
 		this.opponentMarginalCosts = new ArrayList<>();
 		this.ownMarginalCosts = new ArrayList<>();
@@ -87,6 +89,12 @@ public class AuctionPlanner implements AuctionBehavior {
 			sum = sum + i;
 		return sum;
 	}
+	public long listSum(List<Long> longList){
+		long sum = 0;
+		for (long i : longList)
+			sum = sum + i;
+		return sum;
+	}
 	@Override
 	public void auctionResult(Task previous, int winner, Long[] bids) {
 		/**
@@ -95,6 +103,7 @@ public class AuctionPlanner implements AuctionBehavior {
 		 * The actual bids of all agents is given as an array lastOffers indexed by agent id.
 		 * A null offer indicates that the agent did not participate in the auction.
 		 */
+		// check bid size and verify
 		if (bids.length == 2){
 			this.opponentBids.add((listSum(bids)-bids[this.agent.id()]));
 		}
@@ -107,6 +116,7 @@ public class AuctionPlanner implements AuctionBehavior {
 			System.exit(1);
 		}
 		this.ownBids.add(bids[this.agent.id()]);
+		this.historicalBids.add(bids[winner]);
 		if (winner == this.agent.id()) {
 
 			System.out.println("You have won task "+ previous.id);
@@ -138,9 +148,9 @@ public class AuctionPlanner implements AuctionBehavior {
 			return null;
 		this.numAuctions++;
 		//bidding parameters
-		double epsilon = 500; // todo: make vary with tasks
-		double min_profit = 100;
-		double profit_markup = 1.00;
+		double epsilon = listSum(historicalBids)/(numAuctions*10); // this is roughly 10% (or lower) of the realised bids (almost 10% when number of tasks increased.)
+		double min_profit = epsilon;
+		double profit_markup = 1.00; // how much more you want at margin cost
 		double maxEstimateRatio = 4.0; // max cut-off for opponents cost multiplication
 		int maxLookBackForEstimateRation = 5; // how many entries to be used to calculate estimate ratio
 		double bid;
@@ -156,7 +166,7 @@ public class AuctionPlanner implements AuctionBehavior {
 		double estimateRatio = estimateRatioWithLimitedLookBack(this.opponentBids,this.opponentMarginalCosts, maxLookBackForEstimateRation);
 
 		// the range of estimateRatio should be withing 0 and maxEstimateRatio
-		estimateRatio = Math.max( estimateRatio, 1);
+//		estimateRatio = Math.max( estimateRatio, 1);
 		estimateRatio = Math.min( estimateRatio, maxEstimateRatio);
 		double opponentBid = estimateRatio*marginalOpponentCost;
 
