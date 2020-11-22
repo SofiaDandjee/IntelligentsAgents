@@ -95,13 +95,21 @@ public class AuctionPlanner implements AuctionBehavior {
 		 * The actual bids of all agents is given as an array lastOffers indexed by agent id.
 		 * A null offer indicates that the agent did not participate in the auction.
 		 */
-		this.opponentBids.add((listSum(bids)-bids[this.agent.id()]));
+		if (bids.length == 2){
+			this.opponentBids.add((listSum(bids)-bids[this.agent.id()]));
+		}
+		else if (bids.length > 2){
+			System.out.println("We have only optimized our solution for 2 companies. But "+bids.length+" bids found.");
+			this.opponentBids.add((listSum(bids)-bids[this.agent.id()])/(bids.length-1));
+		}
+		else{
+			System.out.println("No other bids were found. We can exploit the auction.");
+			System.exit(1);
+		}
 		this.ownBids.add(bids[this.agent.id()]);
 		if (winner == this.agent.id()) {
 
 			System.out.println("You have won task "+ previous.id);
-//			currentCity = previous.deliveryCity;
-			//update own plan
 			win(this.auctionPlanner, previous);
 			this.winningBids += bids[this.agent.id()];
 
@@ -109,8 +117,6 @@ public class AuctionPlanner implements AuctionBehavior {
 			//update plan of opponent
 			System.out.println("Your opponent has won task "+ previous.id);
 			win(this.opponentPlanner, previous);
-//			System.out.print("Estimate opponent plan :");
-//			opponentPlanner.getBestSolution().print();
 
 		}
 
@@ -149,9 +155,9 @@ public class AuctionPlanner implements AuctionBehavior {
 //		double estimateRatio = estimateRatio(this.opponentBids,this.opponentMarginalCosts);
 		double estimateRatio = estimateRatioWithLimitedLookBack(this.opponentBids,this.opponentMarginalCosts, maxLookBackForEstimateRation);
 
-		if (!trickOpponent){
-			estimateRatio = Math.min( estimateRatio, maxEstimateRatio);
-		}
+		// the range of estimateRatio should be withing 0 and maxEstimateRatio
+		estimateRatio = Math.max( estimateRatio, 1);
+		estimateRatio = Math.min( estimateRatio, maxEstimateRatio);
 		double opponentBid = estimateRatio*marginalOpponentCost;
 
 		System.out.println("Computing own marginal cost with task "+task.id);
@@ -159,10 +165,10 @@ public class AuctionPlanner implements AuctionBehavior {
 		//compute own marginal cost
 		double marginalCost = computeMarginalCost(this.auctionPlanner, task);
 		this.ownMarginalCosts.add(marginalCost);
-		// if opponents marginal cost is 0 and ours is not, try to trick the opponent by giving a spike to
+		// if opponents marginal cost is 0 and ours is not, try to trick the opponent by giving a spike to bids
 		if ((marginalOpponentCost == 0) && trickOpponent && (marginalCost!=0)) {
 			trickOpponent = false;
-			return (long) 1000000000;
+			return (long) Double.POSITIVE_INFINITY;
 		}
 
 		// TODO: take into account probability distributions of tasks
@@ -335,6 +341,9 @@ public class AuctionPlanner implements AuctionBehavior {
 				if (margCosts.get(i) > 0) {
 					r += (double) bids.get(i)/margCosts.get(i);
 				}
+				else if(bids.get(i)>0){ // if marginal cost is zero and bid is not
+					r += 1;
+				}
 				if (maxLookBack <= lookBacks){
 					return r/maxLookBack;
 				}
@@ -345,14 +354,14 @@ public class AuctionPlanner implements AuctionBehavior {
 
 	double computeFutureCosts(int numPredictions, Task t) {
 
-		Solution formerSolution = new Solution(auctionPlanner.getBestSolution());
-		List<Task> previous = new ArrayList<>(auctionPlanner.tasks);
+		Solution formerSolution = new Solution(this.auctionPlanner.getBestSolution());
+		List<Task> previous = new ArrayList<>(this.auctionPlanner.tasks);
 		for (int i = 0; i < numPredictions; ++i) {
 			previous.add(distribution.createTask());
 			formerSolution.insertTask(t);
 		}
-		Planner futurePlanner = new Planner(auctionPlanner.vehicles, previous);
+		Planner futurePlanner = new Planner(this.auctionPlanner.vehicles, previous);
 		futurePlanner.search(formerSolution);
-		return Math.max(0, futurePlanner.getBestCost() - auctionPlanner.getBestCost());
+		return Math.max(0, futurePlanner.getBestCost() - this.auctionPlanner.getBestCost());
 	}
 }
