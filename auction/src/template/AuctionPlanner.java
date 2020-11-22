@@ -35,17 +35,20 @@ public class AuctionPlanner implements AuctionBehavior {
 	private long timeout_plan;
 	private long timeout_setup;
 	private long timeout_bid;
-	private boolean recomputed;
 	private Planner auctionPlanner;
 	private Planner opponentPlanner;
 	private Integer numAuctions;
 	private Long winningBids;
-	private List<Long> historicalBids;
 	private List<Long> opponentBids;
 	private List<Long> ownBids;
 	private List<Double> opponentMarginalCosts;
 	private List<Double> ownMarginalCosts;
+	private List<Long> historicalBids;
 	private boolean trickOpponent;
+	private List<Double> estimateOpponentBids;
+	private boolean future;
+	private double shortestRouteCost;
+
 	@Override
 
 	public void setup(Topology topology, TaskDistribution distribution,
@@ -63,12 +66,14 @@ public class AuctionPlanner implements AuctionBehavior {
 		long seed = -9019554669489983951L * currentCity.hashCode() * agent.id();
 		this.random = new Random(seed);
 		this.winningBids = (long) 0;
-		this.historicalBids = new ArrayList<>();
 		this.opponentBids = new ArrayList<>();
 		this.opponentMarginalCosts = new ArrayList<>();
 		this.ownMarginalCosts = new ArrayList<>();
 		this.ownBids = new ArrayList<>();
+		this.historicalBids = new ArrayList<>();
 		this.trickOpponent = true;
+		this.estimateOpponentBids = new ArrayList<>();
+		this.future = false;
 
 		LogistSettings ls = null;
 		try {
@@ -81,6 +86,20 @@ public class AuctionPlanner implements AuctionBehavior {
 		timeout_plan = ls.get(LogistSettings.TimeoutKey.PLAN);
 		timeout_setup = ls.get(LogistSettings.TimeoutKey.SETUP);
 		timeout_bid = ls.get(LogistSettings.TimeoutKey.BID);
+
+		double average = 0;
+		int count = 0;
+		for (City c1 : topology) {
+			for (City c2 : topology) {
+				if (!c1.name.equals(c2.name) && c1.hasNeighbor(c2)) {
+					average += c1.distanceTo(c2);
+					count++;
+				}
+			}
+		}
+		average/=count;
+		shortestRouteCost = average;
+
 	}
 
 	public long listSum(Long[] longList){
@@ -89,12 +108,14 @@ public class AuctionPlanner implements AuctionBehavior {
 			sum = sum + i;
 		return sum;
 	}
+
 	public long listSum(List<Long> longList){
 		long sum = 0;
 		for (long i : longList)
 			sum = sum + i;
 		return sum;
 	}
+
 	@Override
 	public void auctionResult(Task previous, int winner, Long[] bids) {
 		/**
@@ -103,6 +124,7 @@ public class AuctionPlanner implements AuctionBehavior {
 		 * The actual bids of all agents is given as an array lastOffers indexed by agent id.
 		 * A null offer indicates that the agent did not participate in the auction.
 		 */
+
 		// check bid size and verify
 		if (bids.length == 2){
 			this.opponentBids.add((listSum(bids)-bids[this.agent.id()]));
@@ -117,6 +139,7 @@ public class AuctionPlanner implements AuctionBehavior {
 		}
 		this.ownBids.add(bids[this.agent.id()]);
 		this.historicalBids.add(bids[winner]);
+
 		if (winner == this.agent.id()) {
 
 			System.out.println("You have won task "+ previous.id);
@@ -148,11 +171,16 @@ public class AuctionPlanner implements AuctionBehavior {
 			return null;
 		this.numAuctions++;
 		//bidding parameters
-		double epsilon = listSum(historicalBids)/(numAuctions*10); // this is roughly 10% (or lower) of the realised bids (almost 10% when number of tasks increased.)
-		double min_profit = epsilon;
-		double profit_markup = 1.00; // how much more you want at margin cost
-		double maxEstimateRatio = 4.0; // max cut-off for opponents cost multiplication
-		int maxLookBackForEstimateRation = 5; // how many entries to be used to calculate estimate ratio
+		int minAuctions = 5;
+		int numPredictions = numAuctions <= minAuctions ? minAuctions - numAuctions : 1;
+		double epsilon = 3*(double) listSum(historicalBids)/(numAuctions*10); // this is roughly 10% (or lower) of the realised bids (almost 10% when number of tasks increased.)
+//		double epsilon = shortestRouteCost;
+
+		double minProfit = epsilon;
+		double profitMarkup = 1.00; // how much more you want at margin cost
+
+		double maxEstimateRatio = 2.0; // max cut-off for opponents cost multiplication
+		int maxLookBackForEstimateRation = numAuctions-1; // how many entries to be used to calculate estimate ratio
 		double bid;
 
 		System.out.println("Computing opponent marginal cost with task "+task.id);
@@ -166,45 +194,45 @@ public class AuctionPlanner implements AuctionBehavior {
 		double estimateRatio = estimateRatioWithLimitedLookBack(this.opponentBids,this.opponentMarginalCosts, maxLookBackForEstimateRation);
 
 		// the range of estimateRatio should be withing 0 and maxEstimateRatio
-//		estimateRatio = Math.max( estimateRatio, 1);
+		//estimateRatio = Math.max( estimateRatio, 0);
 		estimateRatio = Math.min( estimateRatio, maxEstimateRatio);
-		double opponentBid = estimateRatio*marginalOpponentCost;
 
+		double opponentBid = estimateRatio*marginalOpponentCost;
+		this.estimateOpponentBids.add(opponentBid);
 		System.out.println("Computing own marginal cost with task "+task.id);
 
 		//compute own marginal cost
 		double marginalCost = computeMarginalCost(this.auctionPlanner, task);
 		this.ownMarginalCosts.add(marginalCost);
+
 		// if opponents marginal cost is 0 and ours is not, try to trick the opponent by giving a spike to bids
 		if ((marginalOpponentCost == 0) && trickOpponent && (marginalCost!=0)) {
 			trickOpponent = false;
 			return (long) Double.POSITIVE_INFINITY;
 		}
 
-		// TODO: take into account probability distributions of tasks
-		bid = Math.max((opponentBid - epsilon), (marginalCost* profit_markup));
+		if (marginalCost == 0) {
+			return (long) epsilon;
+		}
+
+		if (future) {
+			double expectedFutureCost = computeExpectedCost(numPredictions, marginalCost);
+			marginalCost = Math.min(marginalCost, expectedFutureCost);
+		}
+
+		bid = Math.max((opponentBid - epsilon), (marginalCost* profitMarkup));
 
 
-		return (long) Math.max(Math.floor(bid) , min_profit); // we should not bid less than min_profit
+		return (long) Math.max(Math.floor(bid) , minProfit); // we should not bid less than minProfit
 	}
 
 	@Override
 	public List<Plan> plan(List<Vehicle> vehicles, TaskSet tasks) {
 
-		System.out.println("Bid history:");
-		System.out.println("My bids" + this.ownBids);
-		System.out.println("My marg costs "+ this.ownMarginalCosts );
-		System.out.println("Opponent bids" + this.opponentBids);
-		System.out.println("Opponent marg costs" + this.opponentMarginalCosts);
-
-		System.out.println("Computing plan.");
-
+		debriefing();
 		long time_start = System.currentTimeMillis();
 
-		System.out.println("The total-cost is " + this.auctionPlanner.getBestCost());
-		System.out.println("The total-wining score is " + this.winningBids);
-		System.out.println("You have obtained " + tasks.size() + " out of " + this.numAuctions + " auctions.");
-		System.out.println("with a benefit of :" + (this.winningBids - this.auctionPlanner.bestCost));
+		System.out.println("Computing plan.");
 		List<Plan> plans = buildPlan(this.auctionPlanner.getBestSolution(), vehicles);
 
 		long time_end = System.currentTimeMillis();
@@ -350,8 +378,7 @@ public class AuctionPlanner implements AuctionBehavior {
 				lookBacks++;
 				if (margCosts.get(i) > 0) {
 					r += (double) bids.get(i)/margCosts.get(i);
-				}
-				else if(bids.get(i)>0){ // if marginal cost is zero and bid is not
+				} else if (bids.get(i)>0 && margCosts.get(i) == 0) {
 					r += 1;
 				}
 				if (maxLookBack <= lookBacks){
@@ -362,16 +389,57 @@ public class AuctionPlanner implements AuctionBehavior {
 		return r/bids.size();
 	}
 
-	double computeFutureCosts(int numPredictions, Task t) {
+	double computeExpectedCost(int numPredictions, double margCost) {
 
-		Solution formerSolution = new Solution(this.auctionPlanner.getBestSolution());
-		List<Task> previous = new ArrayList<>(this.auctionPlanner.tasks);
+		double expectedCost = margCost;
+
+		Planner futurePlan = new Planner(auctionPlanner.vehicles, auctionPlanner.tasks);
+		Solution init = auctionPlanner.getBestSolution();
+
+		double formerCost = margCost;
+
+		//Solution init;
+
 		for (int i = 0; i < numPredictions; ++i) {
-			previous.add(distribution.createTask());
-			formerSolution.insertTask(t);
+			Task rTask = distribution.createTask();
+			if (init != null) {
+				init = new Solution(init);
+				futurePlan.addTask(rTask);
+				init.insertTask(rTask);
+				futurePlan.search(init);
+			} else {
+				futurePlan.addTask(rTask);
+				futurePlan.search(futurePlan.selectInitialSolution());
+				init = new Solution(futurePlan.getBestSolution());
+			}
+
+			expectedCost += futurePlan.getBestCost() - formerCost;
+			formerCost = futurePlan.getBestCost();
 		}
-		Planner futurePlanner = new Planner(this.auctionPlanner.vehicles, previous);
-		futurePlanner.search(formerSolution);
-		return Math.max(0, futurePlanner.getBestCost() - this.auctionPlanner.getBestCost());
+
+		return Math.max(0, expectedCost/(numPredictions+1));
+	}
+
+	public void debriefing() {
+		System.out.println("Bid history:");
+		System.out.println("My bids" + this.ownBids);
+		System.out.println("My marg costs "+ this.ownMarginalCosts );
+		System.out.println("Opponent bids" + this.opponentBids);
+		System.out.println("Opponent marg costs" + this.opponentMarginalCosts);
+		System.out.println("Losses:");
+		for (int i = 0; i < ownBids.size();++i) {
+			if (ownBids.get(i) > opponentBids.get(i)) {
+				System.out.println("Task " + i);
+				System.out.println("My bid " + ownBids.get(i));
+				System.out.println("Opponent bid " + opponentBids.get(i));
+				System.out.println("Estimate Opponent bid " + estimateOpponentBids.get(i));
+				System.out.println("My marg cost " + ownMarginalCosts.get(i));
+				System.out.println("Opponent marg cost " + opponentMarginalCosts.get(i));
+			}
+		}
+		System.out.println("The total-cost is " + this.auctionPlanner.getBestCost());
+		System.out.println("The total-wining score is " + this.winningBids);
+		System.out.println("You have obtained " + auctionPlanner.getTasks().size() + " out of " + this.numAuctions + " auctions.");
+		System.out.println("with a benefit of :" + (this.winningBids - this.auctionPlanner.bestCost));
 	}
 }
