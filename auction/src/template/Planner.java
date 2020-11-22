@@ -442,7 +442,7 @@ public class Planner {
 
         bestSolution = s;
         bestCost= s.getCost();
-        int maxIter = 10000;
+        int maxIter = 100;
         int iter = 0;
         do {
             Solution sOld = s;
