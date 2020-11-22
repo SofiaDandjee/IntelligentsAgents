@@ -73,7 +73,7 @@ public class AuctionPlanner implements AuctionBehavior {
 		this.historicalBids = new ArrayList<>();
 		this.trickOpponent = true;
 		this.estimateOpponentBids = new ArrayList<>();
-		this.future = false;
+		this.future = true;
 
 		LogistSettings ls = null;
 		try {
@@ -175,7 +175,7 @@ public class AuctionPlanner implements AuctionBehavior {
 		double minProfit = epsilon;
 		double profitMarkup = 1.00; // how much more you want at margin cost
 
-		double maxEstimateRatio = 4.0; // max cut-off for opponents cost multiplication
+		double maxEstimateRatio = 2.0; // max cut-off for opponents cost multiplication
 		int maxLookBackForEstimateRation = 5;  // this.numAuctions-1; // how many entries to be used to calculate estimate ratio
 		double bid;
 
@@ -209,9 +209,12 @@ public class AuctionPlanner implements AuctionBehavior {
 			return (long) Math.max( (opponentBid - epsilon)/2, minProfit); // 50% lesser price than expected bid from opponent, if our cost is zero
 		}
 
-		if (this.future) {
+		if (this.future && (this.numAuctions<minAuctions)) {
 			double expectedFutureCost = computeExpectedCost(numPredictions, marginalCost);
 			marginalCost = Math.min(marginalCost, expectedFutureCost);
+
+			double expectedMarginalReduction = computeMarginalExpectedCost(numPredictions, task);
+			marginalCost -= expectedMarginalReduction;
 		}
 
 		bid = Math.max((opponentBid - epsilon), (marginalCost* profitMarkup)); // note that if both marginal costs are zero, this will out zero
@@ -413,6 +416,35 @@ public class AuctionPlanner implements AuctionBehavior {
 		return Math.max(0, expectedCost/(numPredictions+1));
 	}
 
+	double computeMarginalExpectedCost(int numPredictions, Task newTask) {
+
+
+		Planner futurePlan = new Planner(this.auctionPlanner.vehicles, this.auctionPlanner.tasks);
+		Solution init = this.auctionPlanner.getBestSolution();
+
+		for (int i = 0; i < numPredictions; ++i) {
+			Task rTask = this.distribution.createTask();
+			if (init != null) {
+				init = new Solution(init);
+				futurePlan.addTask(rTask);
+				init.insertTask(rTask);
+				futurePlan.search(init);
+			} else {
+				futurePlan.addTask(rTask);
+				futurePlan.search(futurePlan.selectInitialSolution());
+				init = new Solution(futurePlan.getBestSolution());
+			}
+
+		}
+		double expectedCost = futurePlan.getBestCost();
+		futurePlan.addTask(newTask);
+		init.insertTask(newTask);
+		futurePlan.search(init);
+		double expectedCostWithTask = futurePlan.getBestCost();
+		double xx = (expectedCost-expectedCostWithTask);
+
+		return Math.max(0, (expectedCost-expectedCostWithTask));
+	}
 	public void debriefing() {
 		System.out.println("Bid history:");
 		System.out.println("My bids" + this.ownBids);
